@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Страница не найдена</title>
+<meta name="robots" content="noindex">
+<style>
+  /* Стили встроены: страница ошибки должна открыться, даже если
+     внешний файл оформления по какой-то причине не отдался. */
+  :root {
+    --ink: #1d1d1f; --slate: #707070; --steel: #86868b;
+    --mist: #f5f5f7; --blue: #0071e3; --link: #0066cc;
+    --font: 'SF Pro Text', ui-sans-serif, system-ui, -apple-system,
+            BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #fff; color: var(--ink);
+    font-family: var(--font); font-size: 17px; line-height: 1.47;
+    letter-spacing: -0.374px; display: grid; place-items: center;
+    padding: 24px; -webkit-font-smoothing: antialiased;
+  }
+  .box { max-width: 560px; text-align: center; }
+  .kicker {
+    font-size: 21px; font-weight: 600; line-height: 1;
+    letter-spacing: 0.231px; margin: 0 0 20px;
+  }
+  h1 {
+    font-size: clamp(40px, 9vw, 80px); font-weight: 600; line-height: 1.05;
+    letter-spacing: -1.2px; margin: 0 0 24px;
+  }
+  p { margin: 0 0 20px; color: var(--ink); }
+  .muted { color: var(--slate); font-size: 14px; letter-spacing: -0.224px; }
+  .actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+  a.pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 20px; letter-spacing: -0.224px;
+    padding: 12px 24px; border-radius: 9999px; text-decoration: none;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  a.filled { background: var(--blue); color: #fff; }
+  a.outline { color: var(--ink); border-color: var(--steel); }
+  a.filled:hover { background: #0077ed; }
+  a.outline:hover { border-color: var(--ink); }
+  hr { border: 0; border-top: 1px solid #d6d6d6; margin: 40px 0 24px; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <p class="kicker">Храм Архистратига Михаила</p>
+    <h1>Страница<br>не найдена</h1>
+    <p>Такой страницы на сайте нет. Возможно, ссылка устарела или в адресе опечатка.</p>
+    <div class="actions">
+      <a class="pill filled" href="/" id="home">На главную</a>
+      <a class="pill outline" href="/" id="hist">История прихода</a>
+    </div>
+    <hr>
+    <p class="muted">Храм Архистратига Михаила, посёлок Бобровский, Сысертский муниципальный округ Свердловской области.</p>
+  </div>
+
+<script>
+/* На GitHub Pages сайт лежит по подпути вида /имя-репозитория/, и файл 404
+   отдаётся для любой глубины вложенности. Поэтому корень сайта вычисляем
+   из адреса, а не зашиваем относительной ссылкой. */
+(function () {
+  var parts = location.pathname.split('/').filter(Boolean);
+  var base = parts.length > 1 ? '/' + parts[0] + '/' : '/';
+  var home = document.getElementById('home');
+  var hist = document.getElementById('hist');
+  if (home) home.href = base;
+  if (hist) hist.href = base + 'history.html';
+})();
+</script>
+</body>
+</html>
