@@ -167,11 +167,11 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
   <div class="panel">
     <span class="eyebrow" id="menuEyebrow">Шутер от первого лица</span>
     <h1 id="menuTitle">Катакомбы</h1>
-    <p class="lead" id="lead">Спустись как можно глубже. На каждом уровне спрятан светящийся портал вниз. Твари просыпаются от выстрелов и идут на звук.</p>
+    <p class="lead" id="lead">Спустись как можно глубже. На каждом уровне спрятан светящийся портал вниз. Каждые три уровня меняется мир, каждый пятый охраняет страж.</p>
     <dl class="keys" id="keysDesk">
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>ходить, <kbd>Shift</kbd> - бежать</dd>
       <dt>Мышь</dt><dd>смотреть и целиться, клик - выстрел</dd>
-      <dt><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></dt><dd>револьвер, дробовик, посох (или колесо мыши)</dd>
+      <dt><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></dt><dd>револьвер, дробовик, посох (или колесо мыши). Дробовик и посох нужно найти</dd>
       <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>поворот без мыши, <kbd>PgUp</kbd><kbd>PgDn</kbd> - вверх/вниз, <kbd>Пробел</kbd> - выстрел</dd>
       <dt><kbd>Tab</kbd></dt><dd>карта, <kbd>Esc</kbd> - пауза</dd>
     </dl>
@@ -209,21 +209,43 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
 
   // ---------- Текстуры ----------
   const T = 64;
-  function makeTex(draw, noise = 0) {
+  // glow рисует светящиеся детали: такие пиксели получают альфу 254 и не темнеют в тумане
+  function makeTex(draw, noise = 0, glow = null) {
     const c = document.createElement('canvas'); c.width = c.height = T;
     const g = c.getContext('2d');
     draw(g);
     const img = g.getImageData(0, 0, T, T);
+    const d = img.data;
     if (noise) {
-      const d = img.data;
       for (let i = 0; i < d.length; i += 4) {
         if (!d[i + 3]) continue;
         const n = (Math.random() - 0.5) * noise;
         d[i] = clamp(d[i] + n, 0, 255); d[i + 1] = clamp(d[i + 1] + n, 0, 255); d[i + 2] = clamp(d[i + 2] + n, 0, 255);
       }
     }
-    return new Uint32Array(img.data.buffer.slice(0));
+    if (glow) {
+      const c2 = document.createElement('canvas'); c2.width = c2.height = T;
+      const g2 = c2.getContext('2d');
+      glow(g2);
+      const gd = g2.getImageData(0, 0, T, T).data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (gd[i + 3] < 60) continue;
+        d[i] = gd[i]; d[i + 1] = gd[i + 1]; d[i + 2] = gd[i + 2]; d[i + 3] = 254;
+      }
+    }
+    return new Uint32Array(d.buffer.slice(0));
   }
+  const blobs = (g, n, hue, sat, l0, l1, r0, r1) => {
+    for (let i = 0; i < n; i++) {
+      g.fillStyle = `hsl(${hue}, ${sat}%, ${l0 + Math.random() * (l1 - l0)}%)`;
+      g.beginPath(); g.arc(Math.random() * T, Math.random() * T, r0 + Math.random() * (r1 - r0), 0, TAU); g.fill();
+    }
+  };
+  const crack = (g, x, y, len, color, w) => {
+    g.strokeStyle = color; g.lineWidth = w; g.beginPath(); g.moveTo(x, y);
+    for (let i = 0; i < len; i++) { x += rand(-6, 6); y += rand(2, 8); g.lineTo(x, y); }
+    g.stroke();
+  };
   function whiten(tex) {
     const out = new Uint32Array(tex.length);
     for (let i = 0; i < tex.length; i++) {
@@ -235,7 +257,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     return out;
   }
 
-  const WALL = [null,
+  const W_CATA = [null,
     // 1 кирпич
     makeTex(g => {
       g.fillStyle = '#2a1810'; g.fillRect(0, 0, T, T);
@@ -280,17 +302,146 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
       }
     }, 18),
   ];
-  const FLOOR = makeTex(g => {
+  const F_CATA = makeTex(g => {
     g.fillStyle = '#120d0a'; g.fillRect(0, 0, T, T);
     for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
       g.fillStyle = `hsl(25, 14%, ${13 + Math.random() * 5}%)`; g.fillRect(x * 32 + 1, y * 32 + 1, 30, 30);
     }
   }, 20);
-  const CEIL = makeTex(g => {
+  const C_CATA = makeTex(g => {
     g.fillStyle = '#0e0b09'; g.fillRect(0, 0, T, T);
     g.fillStyle = '#1b1511'; g.fillRect(2, 2, 60, 60);
     g.fillStyle = '#100c0a'; g.fillRect(30, 0, 4, T);
   }, 14);
+
+
+  const W_CAVE = [null,
+    makeTex(g => { g.fillStyle = '#1b282e'; g.fillRect(0, 0, T, T); blobs(g, 40, 200, 14, 14, 30, 4, 12); }, 30),
+    makeTex(g => {
+      g.fillStyle = '#1b282e'; g.fillRect(0, 0, T, T); blobs(g, 30, 195, 12, 14, 26, 4, 11);
+      for (let i = 0; i < 14; i++) { g.fillStyle = `hsla(${150 + Math.random() * 30}, 40%, ${18 + Math.random() * 12}%, .85)`; g.fillRect(Math.random() * T, 0, 1 + Math.random() * 2, 10 + Math.random() * 40); }
+    }, 26),
+    makeTex(g => { g.fillStyle = '#18252a'; g.fillRect(0, 0, T, T); blobs(g, 34, 200, 12, 12, 26, 4, 11); }, 26, g => {
+      for (let i = 0; i < 5; i++) {
+        const x = 6 + i * 12 + rand(-3, 3), y = 50 + rand(-6, 6);
+        g.fillStyle = '#d9f6ff'; g.fillRect(x - 0.5, y, 2, 6);
+        g.fillStyle = i % 2 ? '#5ff2d6' : '#7fd8ff'; g.beginPath(); g.ellipse(x + 0.5, y, 5, 3, 0, Math.PI, 0); g.fill();
+      }
+    }),
+    makeTex(g => { g.fillStyle = '#17232a'; g.fillRect(0, 0, T, T); blobs(g, 30, 205, 14, 12, 24, 4, 12); }, 26, g => {
+      g.fillStyle = '#8ff3ff';
+      for (let i = 0; i < 4; i++) { const x = rand(8, 56), y = rand(10, 54), h = rand(8, 16); g.beginPath(); g.moveTo(x, y - h); g.lineTo(x + 4, y); g.lineTo(x, y + 3); g.lineTo(x - 4, y); g.fill(); }
+    }),
+  ];
+  const F_CAVE = makeTex(g => {
+    g.fillStyle = '#0e252d'; g.fillRect(0, 0, T, T);
+    g.strokeStyle = 'rgba(120,200,220,.25)'; g.lineWidth = 1;
+    for (let i = 0; i < 6; i++) { g.beginPath(); g.ellipse(rand(0, T), rand(0, T), rand(6, 14), rand(2, 5), 0, 0, TAU); g.stroke(); }
+    blobs(g, 6, 195, 10, 16, 24, 2, 5);
+  }, 14);
+  const C_CAVE = makeTex(g => { g.fillStyle = '#111b1f'; g.fillRect(0, 0, T, T); blobs(g, 30, 200, 10, 8, 18, 4, 12); }, 20);
+
+  const W_BONE = [null,
+    makeTex(g => {
+      g.fillStyle = '#16120f'; g.fillRect(0, 0, T, T);
+      for (let row = 0; row < 5; row++) for (let col = 0; col < 5; col++) {
+        const cx = col * 13 + (row % 2 ? 6 : 0) + 4, cy = row * 13 + 6, l = 62 + Math.random() * 14;
+        g.fillStyle = `hsl(40, 22%, ${l}%)`; g.beginPath(); g.arc(cx, cy, 5, 0, TAU); g.fill(); g.fillRect(cx - 3, cy + 2, 6, 4);
+        g.fillStyle = '#16120f'; g.fillRect(cx - 3, cy - 1, 2, 2); g.fillRect(cx + 1, cy - 1, 2, 2);
+      }
+    }, 18),
+    makeTex(g => {
+      g.fillStyle = '#4a4339'; g.fillRect(0, 0, T, T);
+      for (let row = 0; row < 4; row++) for (let col = -1; col < 3; col++) {
+        const x = col * 32 + (row % 2 ? 16 : 0), y = row * 16;
+        g.fillStyle = `hsl(38, 12%, ${50 + Math.random() * 10}%)`; g.fillRect(x + 1, y + 1, 30, 14);
+      }
+      crack(g, rand(10, 50), 0, 6, 'rgba(40,32,26,.7)', 1);
+    }, 18),
+    makeTex(g => {
+      g.fillStyle = '#5a5246'; g.fillRect(0, 0, T, T);
+      g.fillStyle = '#1a1512'; g.beginPath(); g.moveTo(16, 60); g.lineTo(16, 22); g.arc(32, 22, 16, Math.PI, 0); g.lineTo(48, 60); g.fill();
+      g.fillStyle = '#cdbb9c'; g.beginPath(); g.arc(32, 46, 7, 0, TAU); g.fill(); g.fillRect(28, 50, 8, 6);
+      g.fillStyle = '#1a1512'; g.fillRect(28, 44, 3, 3); g.fillRect(33, 44, 3, 3);
+      g.fillStyle = '#e8dcc0'; g.fillRect(22, 28, 3, 10); g.fillRect(40, 28, 3, 10);
+    }, 16, g => {
+      g.fillStyle = '#ffd36b'; g.beginPath(); g.ellipse(23.5, 25, 2, 3.5, 0, 0, TAU); g.ellipse(41.5, 25, 2, 3.5, 0, 0, TAU); g.fill();
+      g.fillStyle = '#fff4cf'; g.fillRect(23, 25, 1, 2); g.fillRect(41, 25, 1, 2);
+    }),
+    makeTex(g => {
+      g.fillStyle = '#211b16'; g.fillRect(0, 0, T, T);
+      g.lineCap = 'round';
+      for (let i = 0; i < 16; i++) {
+        g.strokeStyle = `hsl(42, 25%, ${55 + Math.random() * 20}%)`; g.lineWidth = rand(2.5, 4);
+        const x = rand(0, T), y = rand(0, T), a = rand(0, TAU), l = rand(8, 18);
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+      }
+    }, 14),
+  ];
+  const F_BONE = makeTex(g => {
+    g.fillStyle = '#2b2620'; g.fillRect(0, 0, T, T);
+    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = `hsl(36, 10%, ${30 + Math.random() * 6}%)`; g.fillRect(x * 32 + 1, y * 32 + 1, 30, 30); }
+    g.fillStyle = '#c9b996'; for (let i = 0; i < 5; i++) g.fillRect(rand(0, T), rand(0, T), rand(2, 5), 1.5);
+  }, 18);
+  const C_BONE = makeTex(g => {
+    g.fillStyle = '#26211c'; g.fillRect(0, 0, T, T);
+    g.fillStyle = '#3a332b'; g.fillRect(0, 28, T, 8); g.fillRect(28, 0, 8, T);
+  }, 14);
+
+  const W_FORGE = [null,
+    makeTex(g => {
+      g.fillStyle = '#151314'; g.fillRect(0, 0, T, T);
+      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
+        g.fillStyle = `hsl(10, 6%, ${17 + Math.random() * 6}%)`; g.fillRect(x * 32 + 1, y * 32 + 1, 30, 30);
+        g.fillStyle = '#5b5552'; for (const [a, b] of [[4, 4], [26, 4], [4, 26], [26, 26]]) g.fillRect(x * 32 + a, y * 32 + b, 2, 2);
+      }
+      for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(130,50,20,.5)'; g.fillRect(rand(0, T), rand(0, 32), 2, rand(8, 30)); }
+    }, 16),
+    makeTex(g => { g.fillStyle = '#120d0c'; g.fillRect(0, 0, T, T); blobs(g, 30, 15, 10, 6, 14, 4, 10); }, 18, g => {
+      crack(g, rand(10, 25), 0, 9, '#ff7a1c', 2.2); crack(g, rand(38, 54), 0, 9, '#ffb13b', 1.6);
+    }),
+    makeTex(g => {
+      g.fillStyle = '#1c0a06'; g.fillRect(0, 0, T, T);
+      for (let row = 0; row < 8; row++) for (let col = -1; col < 4; col++) {
+        const x = col * 16 + (row % 2 ? 8 : 0), y = row * 8;
+        g.fillStyle = `hsl(${6 + Math.random() * 8}, 55%, ${18 + Math.random() * 10}%)`; g.fillRect(x + 1, y + 1, 14, 6);
+      }
+    }, 18, g => {
+      g.fillStyle = '#e8501c';
+      for (let i = 0; i < 3; i++) { const row = irand(0, 7), col = irand(0, 3); g.fillRect(col * 16 + (row % 2 ? 8 : 0) + 1, row * 8 + 1, 14, 6); }
+    }),
+    makeTex(g => {
+      g.fillStyle = '#231e1d'; g.fillRect(0, 0, T, T);
+      g.fillStyle = '#0c0808'; g.fillRect(8, 10, 48, 44);
+    }, 12, g => {
+      const gr = g.createLinearGradient(0, 54, 0, 10); gr.addColorStop(0, '#ffd04a'); gr.addColorStop(0.5, '#ff6a1a'); gr.addColorStop(1, '#8a1a08');
+      for (let i = 0; i < 6; i++) { g.fillStyle = gr; g.fillRect(10 + i * 8, 12, 4, 40); }
+    }),
+  ];
+  const F_FORGE = makeTex(g => {
+    g.fillStyle = '#1d1918'; g.fillRect(0, 0, T, T);
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.fillStyle = `hsl(10, 5%, ${14 + Math.random() * 6}%)`; g.fillRect(x * 16 + 2, y * 16 + 2, 12, 12); }
+  }, 10, g => {
+    g.fillStyle = '#7a1e08';
+    for (let i = 0; i < 4; i++) { g.fillRect(i * 16, 0, 2, T); g.fillRect(0, i * 16, T, 2); }
+  });
+  const C_FORGE = makeTex(g => {
+    g.fillStyle = '#141011'; g.fillRect(0, 0, T, T);
+    g.fillStyle = '#2b2422'; g.fillRect(0, 20, T, 8); g.fillStyle = '#3a302c'; g.fillRect(0, 21, T, 2);
+  }, 12);
+
+  const WORLDS = [
+    { name: 'Катакомбы', walls: W_CATA, floor: F_CATA, ceil: C_CATA, fog: [0, 0, 0] },
+    { name: 'Затопленные пещеры', walls: W_CAVE, floor: F_CAVE, ceil: C_CAVE, fog: [6, 24, 32] },
+    { name: 'Костяной склеп', walls: W_BONE, floor: F_BONE, ceil: C_BONE, fog: [24, 18, 30] },
+    { name: 'Адская кузница', walls: W_FORGE, floor: F_FORGE, ceil: C_FORGE, fog: [44, 8, 3] },
+  ];
+  let WALL = W_CATA, FLOOR = F_CATA, CEIL = C_CATA, FR = 0, FG = 0, FB = 0, FOG32 = 0xff000000;
+  function setWorld(w) {
+    WALL = w.walls; FLOOR = w.floor; CEIL = w.ceil;
+    [FR, FG, FB] = w.fog;
+    FOG32 = (0xff000000 | FB << 16 | FG << 8 | FR) >>> 0;
+  }
 
   // Спрайты монстров
   function drawEye(g, frame) {
@@ -336,8 +487,29 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     g.fillStyle = `hsl(${hue}, 50%, 28%)`; g.beginPath(); g.ellipse(30, 55, 14, 6, 0, 0, TAU); g.fill();
     g.fillStyle = '#d9cdb0'; g.fillRect(40, 53, 6, 3); g.fillRect(18, 56, 4, 2);
   }
+  function drawBoss(g, frame) {
+    const attack = frame === 2, sway = frame === 1 ? 2 : -2;
+    g.fillStyle = '#3d0d0d';
+    g.fillRect(16 + sway, 50, 10, 14); g.fillRect(38 - sway, 50, 10, 14);
+    g.fillStyle = '#2a0808';
+    g.beginPath(); g.moveTo(10, 30); g.lineTo(0, attack ? 8 : 40); g.lineTo(6, attack ? 6 : 44); g.lineTo(16, 36); g.fill();
+    g.beginPath(); g.moveTo(54, 30); g.lineTo(64, attack ? 8 : 40); g.lineTo(58, attack ? 6 : 44); g.lineTo(48, 36); g.fill();
+    const body = g.createRadialGradient(28, 24, 4, 32, 34, 26);
+    body.addColorStop(0, '#b3302a'); body.addColorStop(1, '#4a0f0e');
+    g.fillStyle = body; g.beginPath(); g.ellipse(32, 34, 21, 22, 0, 0, TAU); g.fill();
+    g.fillStyle = '#d9c9a3';
+    g.beginPath(); g.moveTo(16, 18); g.quadraticCurveTo(4, 8, 8, 0); g.quadraticCurveTo(14, 10, 22, 14); g.fill();
+    g.beginPath(); g.moveTo(48, 18); g.quadraticCurveTo(60, 8, 56, 0); g.quadraticCurveTo(50, 10, 42, 14); g.fill();
+    g.fillStyle = '#ffd23a';
+    g.beginPath(); g.moveTo(20, 24); g.lineTo(29, 27); g.lineTo(21, 29); g.fill();
+    g.beginPath(); g.moveTo(44, 24); g.lineTo(35, 27); g.lineTo(43, 29); g.fill();
+    const mh = attack ? 11 : 5;
+    g.fillStyle = attack ? '#ff7a1c' : '#1a0404'; g.beginPath(); g.ellipse(32, 42, 12, mh, 0, 0, TAU); g.fill();
+    g.fillStyle = '#f2ecd6';
+    for (let i = 0; i < 6; i++) { const x = 21 + i * 4; g.beginPath(); g.moveTo(x, 42 - mh); g.lineTo(x + 2, 42 - mh + 4); g.lineTo(x + 4, 42 - mh); g.fill(); }
+  }
   const SPR = {};
-  for (const [name, fn, hue] of [['eye', drawEye, 345], ['fang', drawFang, 95]]) {
+  for (const [name, fn, hue] of [['eye', drawEye, 345], ['fang', drawFang, 95], ['boss', drawBoss, 5]]) {
     SPR[name] = [0, 1, 2].map(f => makeTex(g => fn(g, f), 10));
     SPR[name + 'Hurt'] = SPR[name].map(whiten);
     SPR[name + 'Dead'] = makeTex(g => drawSplat(g, hue), 10);
@@ -355,6 +527,29 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
       g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(x + 1, 36, 2, 15);
     }
   }, 8);
+  SPR.gun1 = makeTex(g => {
+    g.save(); g.translate(32, 48); g.rotate(-0.12);
+    g.fillStyle = '#6b3d20'; g.fillRect(-28, -3, 16, 9);
+    g.fillStyle = '#2b2826'; g.fillRect(-14, -4, 12, 8);
+    g.fillStyle = '#8f887f'; g.fillRect(-2, -3, 30, 3);
+    g.fillStyle = '#5c544c'; g.fillRect(-2, 0, 26, 3);
+    g.fillStyle = '#a0623a'; g.fillRect(6, 0, 10, 5);
+    g.restore();
+  }, 6);
+  SPR.gun2 = makeTex(g => {
+    g.strokeStyle = '#8a5530'; g.lineWidth = 3; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(10, 58); g.lineTo(48, 26); g.stroke();
+    g.fillStyle = '#d0a040'; g.fillRect(26, 42, 4, 3);
+  }, 6, g => {
+    g.fillStyle = '#7ef0ff'; g.beginPath(); g.moveTo(52, 10); g.lineTo(57, 22); g.lineTo(51, 28); g.lineTo(46, 20); g.fill();
+    g.fillStyle = '#e6fdff'; g.fillRect(51, 15, 2, 6);
+  });
+  SPR.portalOff = makeTex(g => {
+    g.strokeStyle = 'rgba(150,140,170,.8)'; g.lineWidth = 3;
+    g.beginPath(); g.ellipse(32, 34, 20, 26, 0, 0, TAU); g.stroke();
+    g.strokeStyle = 'rgba(90,80,110,.7)'; g.lineWidth = 2;
+    g.beginPath(); g.ellipse(32, 34, 12, 17, 0, 0, TAU); g.stroke();
+  });
   SPR.portal = [0, 1].map(f => makeTex(g => {
     const grd = g.createRadialGradient(32, 34, 2, 32, 34, 28);
     grd.addColorStop(0, '#fff6e0'); grd.addColorStop(0.3, '#7ef0ff'); grd.addColorStop(0.7, 'rgba(70,90,255,.6)'); grd.addColorStop(1, 'rgba(40,0,90,0)');
@@ -447,37 +642,99 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
   const isWall = (x, y) => x < 0 || y < 0 || x >= N || y >= N || map[(y | 0) * N + (x | 0)] > 0;
   const blocked = (x, y, r) => isWall(x - r, y - r) || isWall(x + r, y - r) || isWall(x - r, y + r) || isWall(x + r, y + r);
 
-  function genLevel(level) {
-    N = Math.min(24 + level * 4, 48);
+  // Планировки: залы с коридорами, пещеры, лабиринт, большие залы с колоннами
+  function genLevel(level, layout) {
+    N = Math.min(24 + level * 3, 48) | 1;
     map = new Uint8Array(N * N).fill(1);
     seen = new Uint8Array(N * N);
     flow = new Int16Array(N * N);
     rooms = [];
-    const want = Math.min(5 + level, 13);
-    for (let tries = 0; tries < 400 && rooms.length < want; tries++) {
-      const w = irand(4, 8), h = irand(4, 8);
-      const x = irand(1, N - w - 2), y = irand(1, N - h - 2);
-      if (rooms.some(r => x < r.x + r.w + 2 && x + w + 2 > r.x && y < r.y + r.h + 2 && y + h + 2 > r.y)) continue;
-      rooms.push({ x, y, w, h, cx: x + (w >> 1), cy: y + (h >> 1) });
-    }
     const carve = (x, y) => { if (x > 0 && y > 0 && x < N - 1 && y < N - 1) map[y * N + x] = 0; };
-    for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y);
-    // колонны в больших залах
-    for (const r of rooms) if (r.w >= 7 && r.h >= 7 && Math.random() < 0.6) {
-      map[(r.y + 2) * N + r.x + 2] = 2; map[(r.y + 2) * N + r.x + r.w - 3] = 2;
-      map[(r.y + r.h - 3) * N + r.x + 2] = 2; map[(r.y + r.h - 3) * N + r.x + r.w - 3] = 2;
-    }
-    const corridor = (a, b) => {
-      let x = a.cx, y = a.cy;
-      const horizFirst = Math.random() < 0.5;
-      const stepX = () => { while (x !== b.cx) { carve(x, y); x += Math.sign(b.cx - x); } };
-      const stepY = () => { while (y !== b.cy) { carve(x, y); y += Math.sign(b.cy - y); } };
-      if (horizFirst) { stepX(); stepY(); } else { stepY(); stepX(); }
-      carve(x, y);
+    const carveRoom = r => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y); };
+    const placeRooms = (want, w0, w1) => {
+      for (let tries = 0; tries < 500 && rooms.length < want; tries++) {
+        const w = irand(w0, w1), h = irand(w0, w1);
+        const x = irand(1, N - w - 2), y = irand(1, N - h - 2);
+        if (rooms.some(r => x < r.x + r.w + 2 && x + w + 2 > r.x && y < r.y + r.h + 2 && y + h + 2 > r.y)) continue;
+        rooms.push({ x, y, w, h, cx: x + (w >> 1), cy: y + (h >> 1) });
+      }
+      rooms.sort((a, b) => a.cx + a.cy * 0.5 - (b.cx + b.cy * 0.5));
+      rooms.forEach(carveRoom);
     };
-    rooms.sort((a, b) => a.cx + a.cy * 0.5 - (b.cx + b.cy * 0.5));
-    for (let i = 1; i < rooms.length; i++) corridor(rooms[i - 1], rooms[i]);
-    for (let i = 0; i < Math.floor(rooms.length / 3); i++) corridor(rooms[irand(0, rooms.length - 1)], rooms[irand(0, rooms.length - 1)]);
+    const corridor = (a, b, wide) => {
+      let x = a.cx, y = a.cy;
+      const dig = () => { carve(x, y); if (wide) { carve(x + 1, y); carve(x, y + 1); carve(x + 1, y + 1); } };
+      const stepX = () => { while (x !== b.cx) { dig(); x += Math.sign(b.cx - x); } };
+      const stepY = () => { while (y !== b.cy) { dig(); y += Math.sign(b.cy - y); } };
+      if (Math.random() < 0.5) { stepX(); stepY(); } else { stepY(); stepX(); }
+      dig();
+    };
+    const connectAll = (wide) => {
+      for (let i = 1; i < rooms.length; i++) corridor(rooms[i - 1], rooms[i], wide);
+      for (let i = 0; i < Math.floor(rooms.length / 3); i++) corridor(rooms[irand(0, rooms.length - 1)], rooms[irand(0, rooms.length - 1)], wide);
+    };
+
+    if (layout === 'rooms') {
+      placeRooms(Math.min(5 + level, 13), 4, 8);
+      for (const r of rooms) if (r.w >= 7 && r.h >= 7 && Math.random() < 0.6) {
+        map[(r.y + 2) * N + r.x + 2] = 2; map[(r.y + 2) * N + r.x + r.w - 3] = 2;
+        map[(r.y + r.h - 3) * N + r.x + 2] = 2; map[(r.y + r.h - 3) * N + r.x + r.w - 3] = 2;
+      }
+      connectAll(false);
+    } else if (layout === 'halls') {
+      placeRooms(level % 5 === 0 ? 4 : 5, 8, 12);
+      for (const r of rooms) for (let y = r.y + 2; y < r.y + r.h - 2; y += 3) for (let x = r.x + 2; x < r.x + r.w - 2; x += 3) map[y * N + x] = 2;
+      for (const r of rooms) map[r.cy * N + r.cx] = 0;
+      connectAll(true);
+    } else if (layout === 'caves') {
+      for (let attempt = 0; attempt < 6; attempt++) {
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          map[y * N + x] = (x === 0 || y === 0 || x === N - 1 || y === N - 1 || Math.random() < 0.45) ? 1 : 0;
+        }
+        for (let it = 0; it < 5; it++) {
+          const next = new Uint8Array(map);
+          for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+            let c = 0;
+            for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) c += map[(y + oy) * N + x + ox] ? 1 : 0;
+            next[y * N + x] = c >= 5 ? 1 : 0;
+          }
+          map = next;
+        }
+        // оставляем только самую большую пещеру
+        const tmp = new Int16Array(N * N); let bestStart = -1, bestSize = 0;
+        const mark = new Uint8Array(N * N);
+        for (let i = 0; i < N * N; i++) {
+          if (map[i] || mark[i]) continue;
+          bfs(i % N, (i / N) | 0, tmp);
+          let size = 0;
+          for (let j = 0; j < N * N; j++) if (tmp[j] >= 0) { mark[j] = 1; size++; }
+          if (size > bestSize) { bestSize = size; bestStart = i; }
+        }
+        if (bestStart >= 0) {
+          bfs(bestStart % N, (bestStart / N) | 0, tmp);
+          for (let j = 0; j < N * N; j++) if (!map[j] && tmp[j] < 0) map[j] = 1;
+        }
+        if (bestSize > N * N * 0.3) break;
+      }
+    } else {
+      // лабиринт: проходы на нечётных клетках
+      const stack = [[1, 1]]; carve(1, 1);
+      while (stack.length) {
+        const [x, y] = stack[stack.length - 1];
+        const dirs = [[2, 0], [-2, 0], [0, 2], [0, -2]].filter(([dx, dy]) => x + dx > 0 && y + dy > 0 && x + dx < N - 1 && y + dy < N - 1 && map[(y + dy) * N + x + dx]);
+        if (!dirs.length) { stack.pop(); continue; }
+        const [dx, dy] = dirs[irand(0, dirs.length - 1)];
+        carve(x + dx / 2, y + dy / 2); carve(x + dx, y + dy);
+        stack.push([x + dx, y + dy]);
+      }
+      // пробиваем часть стен, чтобы были петли, и вырезаем пару залов
+      for (let i = 0; i < N * N * 0.04; i++) {
+        const x = irand(1, N - 2), y = irand(1, N - 2);
+        if (map[y * N + x] && ((x % 2 === 0 && y % 2 === 1) || (x % 2 === 1 && y % 2 === 0))) map[y * N + x] = 0;
+      }
+      for (let i = 0; i < 3; i++) { const x = irand(1, N - 6) | 1, y = irand(1, N - 6) | 1; carveRoom({ x, y, w: 3, h: 3 }); }
+    }
+
     // Текстуры стен по зонам
     const zoneTex = [];
     for (let i = 0; i < 64; i++) zoneTex.push(irand(1, 4));
@@ -485,12 +742,16 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
       const i = y * N + x;
       if (map[i] === 1) map[i] = zoneTex[((y >> 3) * 8 + (x >> 3)) & 63];
     }
-    // Старт и портал в самой дальней комнате
-    const start = rooms[0];
-    const d = bfs(start.cx, start.cy, new Int16Array(N * N));
-    let far = rooms[1] || rooms[0], fd = -1;
-    for (const r of rooms) { const v = d[r.cy * N + r.cx]; if (v > fd) { fd = v; far = r; } }
-    return { start, exit: far, dist: d };
+    // Старт и портал в самой дальней точке
+    const floors = [];
+    for (let i = 0; i < N * N; i++) if (!map[i]) floors.push(i);
+    let si = rooms.length ? rooms[0].cy * N + rooms[0].cx : floors[irand(0, floors.length - 1)];
+    if (map[si]) si = floors[0];
+    const dist = bfs(si % N, (si / N) | 0, new Int16Array(N * N));
+    let ei = si;
+    for (const i of floors) if (dist[i] > dist[ei]) ei = i;
+    const cells = floors.filter(i => dist[i] >= 0);
+    return { start: si, exit: ei, dist, cells, maxD: dist[ei] };
   }
   function bfs(sx, sy, out) {
     out.fill(-1);
@@ -531,47 +792,76 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
 
   let state = 'menu', lastRecord = false;
   let puffs = [];
+  let boss = null, world = WORLDS[0];
   let P, level, enemies, items, shots, exit, score, totalKills, levelKills, msg, flowTimer, nextTimer, showMap = !isTouch;
 
   function newRun() {
     level = 1; score = 0; totalKills = 0;
     P = { x: 0, y: 0, a: 0, pitch: 0, hp: 100, ammo: 30, cool: 0, flash: 0, recoil: 0, hurt: 0, bob: 0, moving: 0, pick: 0,
-          weapon: 0, nextWeapon: 0, switchT: 0, sinceShot: 9 };
+          weapon: 0, nextWeapon: 0, switchT: 0, sinceShot: 9, owned: [true, false, false] };
     startLevel();
   }
+  function pickLayout() {
+    if (level % 5 === 0) return 'halls';
+    if (level === 1) return 'rooms';
+    const opts = world === WORLDS[1] ? ['caves', 'caves', 'rooms', 'maze'] : world === WORLDS[3] ? ['halls', 'rooms', 'maze', 'caves'] : ['rooms', 'maze', 'caves', 'halls'];
+    return opts[irand(0, opts.length - 1)];
+  }
   function startLevel() {
-    const L = genLevel(level);
-    P.x = L.start.cx + 0.5; P.y = L.start.cy + 0.5;
-    const nb = rooms[1] || L.exit;
-    P.a = Math.atan2(nb.cy - L.start.cy, nb.cx - L.start.cx);
-    exit = { x: L.exit.cx + 0.5, y: L.exit.cy + 0.5 };
-    enemies = []; items = []; shots = []; puffs = []; levelKills = 0;
-    const free = (r) => {
-      for (let i = 0; i < 30; i++) {
-        const x = irand(r.x, r.x + r.w - 1), y = irand(r.y, r.y + r.h - 1);
-        if (!map[y * N + x] && !(x === r.cx && y === r.cy && r === L.exit)) return [x + 0.5, y + 0.5];
-      }
-      return null;
+    world = WORLDS[Math.floor((level - 1) / 3) % WORLDS.length];
+    setWorld(world);
+    const isBoss = level % 5 === 0;
+    const L = genLevel(level, pickLayout());
+    const toXY = i => [i % N + 0.5, ((i / N) | 0) + 0.5];
+    [P.x, P.y] = toXY(L.start);
+    let bestA = 0, bestD = -1;
+    for (let k = 0; k < 8; k++) { const a = k * TAU / 8, d = rayDist(P.x, P.y, a); if (d > bestD) { bestD = d; bestA = a; } }
+    P.a = bestA; P.pitch = 0;
+    const [ex, ey] = toXY(L.exit);
+    exit = { x: ex, y: ey, locked: isBoss };
+    enemies = []; items = []; shots = []; puffs = []; levelKills = 0; boss = null;
+    const used = new Set([L.start, L.exit]);
+    const take = (minD, maxD = 1e9) => {
+      const pool = L.cells.filter(i => !used.has(i) && L.dist[i] >= minD && L.dist[i] <= maxD);
+      if (!pool.length) return null;
+      const i = pool[irand(0, pool.length - 1)];
+      used.add(i);
+      return toXY(i);
     };
-    const others = rooms.filter(r => r !== L.start);
-    const count = Math.min(3 + level * 2, 24);
-    for (let i = 0; i < count && others.length; i++) {
-      const r = others[i % others.length], p = free(r);
-      if (!p || Math.hypot(p[0] - P.x, p[1] - P.y) < 6) continue;
+    const speedK = 1 + Math.min(level - 1, 8) * 0.05;
+    let count = Math.min(3 + level * 2, 24);
+    if (isBoss) {
+      count = Math.floor(count / 2);
+      const p = take(Math.max(4, L.maxD - 6), L.maxD - 2) || take(4);
+      if (p) {
+        boss = { kind: 'boss', x: p[0], y: p[1], hp: 350 + level * 25, speed: 1.3 * speedK, awake: false, cool: 2, hurt: 0, anim: 0,
+                 losT: 0, sees: false, dead: false, attackT: 0, phase: 0, volley: 0 };
+        boss.maxHp = boss.hp;
+        enemies.push(boss);
+      } else exit.locked = false;
+    }
+    for (let i = 0; i < count; i++) {
+      const p = take(7);
+      if (!p) break;
       const kind = Math.random() < (level === 1 ? 0.6 : 0.5) ? 'fang' : 'eye';
-      const speedK = 1 + Math.min(level - 1, 8) * 0.05;
       enemies.push({
         kind, x: p[0], y: p[1], hp: kind === 'eye' ? 50 : 35,
         speed: (kind === 'eye' ? 1.2 : 2.5) * speedK, awake: false, cool: rand(1, 2), hurt: 0, anim: rand(0, 4),
         losT: 0, sees: false, dead: false, attackT: 0, phase: rand(0, TAU),
       });
     }
-    const nHealth = 2 + (level >> 1), nAmmo = 3 + (level >> 1);
+    const nHealth = 2 + (level >> 1) + (isBoss ? 2 : 0), nAmmo = 3 + (level >> 1) + (isBoss ? 2 : 0);
     for (let i = 0; i < nHealth + nAmmo; i++) {
-      const r = rooms[irand(0, rooms.length - 1)], p = free(r);
+      const p = take(2);
       if (p) items.push({ kind: i < nHealth ? 'health' : 'ammo', x: p[0], y: p[1], phase: rand(0, TAU) });
     }
-    flowTimer = 0; msg = { text: 'Уровень ' + level + ' - найди портал', t: 2.5 };
+    // оружие лежит примерно на середине пути к порталу
+    const mid = Math.floor(L.maxD * 0.45);
+    if (!P.owned[1]) { const p = take(mid - 3, mid + 3) || take(3); if (p) items.push({ kind: 'gun1', x: p[0], y: p[1], phase: 0 }); }
+    if (!P.owned[2] && level >= 3) { const p = take(mid - 3, mid + 3) || take(3); if (p) items.push({ kind: 'gun2', x: p[0], y: p[1], phase: 0 }); }
+    flowTimer = 0;
+    msg = isBoss ? { text: 'Уровень ' + level + ' - здесь страж. Убей его, чтобы открыть портал', t: 3.5 }
+                 : { text: 'Уровень ' + level + ' - ' + world.name, t: 2.5 };
     updateHud(true);
   }
 
@@ -621,10 +911,15 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     else if (lockFailed && (e.buttons & 2)) { P.a += e.movementX * 0.005; lookPitch(-e.movementY * 0.003); }
   });
   screen.addEventListener('contextmenu', e => e.preventDefault());
-  addEventListener('wheel', e => { if (state === 'play') selectWeapon((P.weapon + (e.deltaY > 0 ? 1 : 2)) % 3); }, { passive: true });
+  addEventListener('wheel', e => { if (state === 'play') cycleWeapon(e.deltaY > 0 ? 1 : -1); }, { passive: true });
+  function cycleWeapon(dir) {
+    let i = P.nextWeapon;
+    for (let k = 0; k < 3; k++) { i = (i + dir + 3) % 3; if (P.owned[i]) { selectWeapon(i); return; } }
+  }
   function lookPitch(d) { P.pitch = clamp(P.pitch + d, -0.45, 0.45); }
   function selectWeapon(i) {
     if (state !== 'play' || i === P.nextWeapon) return;
+    if (!P.owned[i]) { msg = { text: (i === 1 ? 'Дробовик' : 'Посох') + ' ещё не найден', t: 1.2 }; return; }
     P.nextWeapon = i; P.switchT = 0.36; sfx.swap();
   }
 
@@ -658,7 +953,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
       if (e.pointerId === look.id) look.id = null;
     };
     screen.addEventListener('pointerup', end); screen.addEventListener('pointercancel', end);
-    $('swapBtn').addEventListener('pointerdown', e => { e.preventDefault(); selectWeapon((P.nextWeapon + 1) % 3); });
+    $('swapBtn').addEventListener('pointerdown', e => { e.preventDefault(); cycleWeapon(1); });
     const fb = $('fireBtn');
     fb.addEventListener('pointerdown', e => { e.preventDefault(); touchFire = true; wantFire = true; fb.classList.add('on'); });
     const fend = () => { touchFire = false; fb.classList.remove('on'); };
@@ -668,8 +963,9 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
   // ---------- Логика ----------
   // Где на экране стоит тварь: масштаб, высота над полом и доля текстуры, по которой можно попасть
   function geom(e) {
-    if (e.kind === 'eye') return { scale: 0.62, z: 0.3 + Math.sin(e.phase) * 0.05, h0: 0.1, h1: 0.86 };
-    return { scale: 0.85, z: 0, h0: 0.28, h1: 1 };
+    if (e.kind === 'eye') return { scale: 0.62, z: 0.3 + Math.sin(e.phase) * 0.05, h0: 0.1, h1: 0.86, r: 0.3 };
+    if (e.kind === 'boss') return { scale: 1, z: 0, h0: 0.05, h1: 1, r: 0.5 };
+    return { scale: 0.85, z: 0, h0: 0.28, h1: 1, r: 0.3 };
   }
   function puff(x, y, z, tex, scale, life) { puffs.push({ x, y, z, tex, scale, life, max: life }); }
 
@@ -702,8 +998,9 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
         if (d >= hd) continue;
         let da = Math.atan2(dy, dx) - a;
         da = Math.atan2(Math.sin(da), Math.cos(da));
-        if (Math.abs(da) >= Math.atan(0.3 / d)) continue;
-        const g = geom(e), tY = d * cosOff;
+        const g = geom(e);
+        if (Math.abs(da) >= Math.atan(g.r / d)) continue;
+        const tY = d * cosOff;
         const size = g.scale * RH / tY, bottom = hz + (0.5 - g.z) * RH / tY, top = bottom - size;
         if (yc < top + g.h0 * size || yc > top + g.h1 * size) continue;
         hit = e; hd = d; ht = tY;
@@ -736,9 +1033,14 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     e.hp -= dmg; e.hurt = 0.12; e.awake = true;
     if (e.hp <= 0 && !e.dead) {
       e.dead = true; levelKills++; totalKills++;
-      score += e.kind === 'eye' ? 150 : 100;
+      score += e.kind === 'boss' ? 2000 + level * 100 : e.kind === 'eye' ? 150 : 100;
       sfx.die();
-      if (Math.random() < 0.45) items.push({ kind: 'ammo', x: e.x, y: e.y, phase: 0 });
+      if (e.kind === 'boss') {
+        exit.locked = false;
+        puff(e.x, e.y, 0.5, SPR.boom, 1.6, 0.6); sfx.boom(); sfx.portal();
+        items.push({ kind: 'health', x: e.x + 0.3, y: e.y, phase: 0 }, { kind: 'ammo', x: e.x - 0.3, y: e.y, phase: 0 });
+        msg = { text: 'Страж повержен! Портал открыт', t: 3 };
+      } else if (Math.random() < 0.45) items.push({ kind: 'ammo', x: e.x, y: e.y, phase: 0 });
     } else sfx.pain();
   }
   function hurtPlayer(d) {
@@ -795,13 +1097,13 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     for (const e of enemies) {
       if (e.dead) continue;
       e.hurt = Math.max(0, e.hurt - dt);
-      e.anim += dt * (e.kind === 'fang' ? 8 : 4);
+      e.anim += dt * (e.kind === 'fang' ? 8 : e.kind === 'boss' ? 3 : 4);
       e.phase += dt * 2.5;
       const dx = P.x - e.x, dy = P.y - e.y, d = Math.hypot(dx, dy);
       if ((e.losT -= dt) <= 0) {
         e.sees = d < 14 && los(e.x, e.y, P.x, P.y);
         e.losT = 0.2;
-        if (e.sees && !e.awake && d < 11) { e.awake = true; sfx.growl(); }
+        if (e.sees && !e.awake && d < (e.kind === 'boss' ? 14 : 11)) { e.awake = true; sfx.growl(); if (e.kind === 'boss') msg = { text: 'Страж проснулся!', t: 2 }; }
       }
       if (!e.awake) continue;
       e.cool -= dt; e.attackT = Math.max(0, e.attackT - dt);
@@ -817,7 +1119,21 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
         tx = bx + 0.5; ty = by + 0.5;
       }
       let move = true;
-      if (e.kind === 'eye') {
+      if (e.kind === 'boss') {
+        if (e.sees && d < 2.5) move = false;
+        if (d < 1.1 && e.cool <= 0) { e.cool = 1; e.attackT = 0.3; hurtPlayer(irand(16, 22)); sfx.bite(); }
+        else if (e.sees && d < 14 && e.cool <= 0) {
+          e.volley++;
+          const n = e.volley % 3 === 0 ? 9 : 5, spread = e.volley % 3 === 0 ? 1.4 : 0.55;
+          const a0 = Math.atan2(dy, dx), v = 4.4;
+          for (let k = 0; k < n; k++) {
+            const a = a0 + (k / (n - 1) - 0.5) * spread;
+            shots.push({ x: e.x + Math.cos(a) * 0.6, y: e.y + Math.sin(a) * 0.6, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 5 });
+          }
+          e.cool = rand(1.5, 2.1); e.attackT = 0.45;
+          sfx.spit(); sfx.growl();
+        }
+      } else if (e.kind === 'eye') {
         if (e.sees && d < 4.5) move = false;
         if (e.sees && d < 11 && e.cool <= 0) {
           e.cool = rand(1.8, 2.8) / (1 + Math.min(level - 1, 6) * 0.06); e.attackT = 0.35;
@@ -831,7 +1147,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
       }
       if (move && e.hurt <= 0) {
         const mx = tx - e.x, my = ty - e.y, ml = Math.hypot(mx, my) || 1;
-        moveEntity(e, mx / ml * e.speed * dt, my / ml * e.speed * dt, 0.28);
+        moveEntity(e, mx / ml * e.speed * dt, my / ml * e.speed * dt, e.kind === 'boss' ? 0.4 : 0.28);
       }
       // расталкиваем, чтобы не слипались
       for (const o of enemies) {
@@ -850,7 +1166,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
         for (const e of enemies) {
           if (e.dead) continue;
           const g = geom(e);
-          if (Math.hypot(e.x - s.x, e.y - s.y) < 0.45 && Math.abs(s.z - (g.z + g.scale * 0.5)) < 0.45) { s.life = 0; explode(s.x, s.y, s.z); break; }
+          if (Math.hypot(e.x - s.x, e.y - s.y) < g.r + 0.15 && Math.abs(s.z - (g.z + g.scale * 0.5)) < g.scale * 0.5 + 0.1) { s.life = 0; explode(s.x, s.y, s.z); break; }
         }
         continue;
       }
@@ -868,13 +1184,21 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
       if (Math.hypot(it.x - P.x, it.y - P.y) < 0.5) {
         if (it.kind === 'health' && P.hp < 100) { P.hp = Math.min(100, P.hp + 25); it.taken = true; msg = { text: '+25 здоровья', t: 1.2 }; }
         else if (it.kind === 'ammo') { P.ammo += 8; it.taken = true; msg = { text: '+8 патронов', t: 1.2 }; }
+        else if (it.kind === 'gun1' || it.kind === 'gun2') {
+          const w = it.kind === 'gun1' ? 1 : 2;
+          P.owned[w] = true; P.ammo += 6; it.taken = true;
+          msg = { text: (w === 1 ? 'Найден дробовик!' : 'Найден посох!') + (isTouch ? ' Кнопка ⇄' : ' Клавиша ' + (w + 1)), t: 2.5 };
+          P.nextWeapon = -1; selectWeapon(w);
+        }
         if (it.taken) { P.pick = 1; sfx.pickup(); }
       }
     }
     items = items.filter(i => !i.taken);
 
     // портал
-    if (Math.hypot(exit.x - P.x, exit.y - P.y) < 0.6) {
+    if (exit.locked && Math.hypot(exit.x - P.x, exit.y - P.y) < 0.9) {
+      if (!msg || msg.t < 0.3) msg = { text: 'Портал запечатан. Сначала убей стража', t: 1.5 };
+    } else if (Math.hypot(exit.x - P.x, exit.y - P.y) < 0.6) {
       score += 500 * level;
       state = 'next'; nextTimer = 1.8;
       sfx.portal();
@@ -907,8 +1231,11 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
   resize();
 
   const FOG_D = 9;
+  // Затемняет пиксель к цвету тумана текущего мира; светящиеся пиксели (альфа 254) не трогает
   function shade(c, f) {
-    return (0xff000000 | (((c >> 16) & 255) * f) << 16 | (((c >> 8) & 255) * f) << 8 | ((c & 255) * f)) >>> 0;
+    if ((c >>> 24) === 254) return (c | 0xff000000) >>> 0;
+    const k = 1 - f;
+    return (0xff000000 | (((c >> 16) & 255) * f + FB * k) << 16 | (((c >> 8) & 255) * f + FG * k) << 8 | ((c & 255) * f + FR * k)) >>> 0;
   }
 
   function render3d(now) {
@@ -918,7 +1245,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     const light = 1 + P.flash * 0.6;
     const rx0 = dirX - plX, ry0 = dirY - plY, rx1 = dirX + plX, ry1 = dirY + plY;
 
-    buf.fill(0xff000000);
+    buf.fill(FOG32);
     // пол и потолок
     for (let y = 0; y < RH; y++) {
       const floor = y > half;
@@ -927,7 +1254,6 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
       const stx = rowDist * (rx1 - rx0) / RW, sty = rowDist * (ry1 - ry0) / RW;
       let fx = P.x + rowDist * rx0, fy = P.y + rowDist * ry0;
       const f = Math.min(1, Math.max(0, 1.1 - rowDist / FOG_D) * light);
-      if (f <= 0) continue;
       const tex = floor ? FLOOR : CEIL, fk = floor ? f : f * 0.8;
       const yo = y * RW;
       for (let x = 0; x < RW; x++) {
@@ -980,9 +1306,9 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
         tex = e.attackT > 0 ? frames[2] : frames[e.awake ? (Math.floor(e.anim) % 2) : 0];
       }
       const g = geom(e);
-      list.push({ x: e.x, y: e.y, tex, scale: e.dead ? 0.7 : g.scale, z: e.dead ? 0 : g.z, bright: false });
+      list.push({ x: e.x, y: e.y, tex, scale: e.dead ? (e.kind === 'boss' ? 1 : 0.7) : g.scale, z: e.dead ? 0 : g.z, bright: false });
     }
-    for (const it of items) list.push({ x: it.x, y: it.y, tex: SPR[it.kind], scale: 0.4, z: Math.sin(it.phase) * 0.03, bright: false });
+    for (const it of items) list.push({ x: it.x, y: it.y, tex: SPR[it.kind], scale: it.kind.startsWith('gun') ? 0.55 : 0.4, z: Math.sin(it.phase) * 0.03, bright: false });
     for (const s of shots) list.push(s.player
       ? { x: s.x, y: s.y, tex: SPR.bolt, scale: 0.28, z: s.z - 0.14, bright: true }
       : { x: s.x, y: s.y, tex: SPR.fireball, scale: 0.3, z: 0.38, bright: true });
@@ -990,7 +1316,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
       const sc = q.scale * (q.tex === SPR.boom ? 1.4 - 0.6 * q.life / q.max : 1);
       list.push({ x: q.x, y: q.y, tex: q.tex, scale: sc, z: q.z - sc / 2, bright: true });
     }
-    list.push({ x: exit.x, y: exit.y, tex: SPR.portal[Math.floor(now / 160) % 2], scale: 1, z: 0, bright: true });
+    list.push({ x: exit.x, y: exit.y, tex: exit.locked ? SPR.portalOff : SPR.portal[Math.floor(now / 160) % 2], scale: 1, z: 0, bright: !exit.locked });
 
     const invDet = 1 / (plX * dirY - dirX * plY);
     for (const s of list) { const dx = s.x - P.x, dy = s.y - P.y; s.d = dx * dx + dy * dy; }
@@ -1018,7 +1344,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
           if (ty < 0 || ty >= T) continue;
           const c = tex[ty * T + tx];
           if ((c >>> 24) < 128) continue;
-          buf[y * RW + x] = f === 1 ? c : shade(c, f);
+          buf[y * RW + x] = f === 1 ? (c | 0xff000000) >>> 0 : shade(c, f);
         }
       }
     }
@@ -1140,7 +1466,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     }
     const ex = exit.x | 0, ey = exit.y | 0;
     if (Math.abs(ex - pcx) <= R && Math.abs(ey - pcy) <= R && (seen[ey * N + ex] || los(P.x, P.y, exit.x, exit.y))) {
-      sctx.fillStyle = '#7ef0ff'; sctx.fillRect(ox + (ex - pcx + R) * cell - 1, oy + (ey - pcy + R) * cell - 1, cell + 2, cell + 2);
+      sctx.fillStyle = exit.locked ? '#9a90aa' : '#7ef0ff'; sctx.fillRect(ox + (ex - pcx + R) * cell - 1, oy + (ey - pcy + R) * cell - 1, cell + 2, cell + 2);
     }
     const mx = ox + (P.x - pcx + R) * cell, my = oy + (P.y - pcy + R) * cell;
     sctx.fillStyle = '#ff7a2f';
@@ -1171,6 +1497,13 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     }
     if (P.pick > 0) { sctx.fillStyle = `rgba(255,220,140,${0.12 * P.pick})`; sctx.fillRect(0, 0, W, H); }
     if (showMap && state === 'play') drawMinimap(W, H);
+    if (boss && boss.awake && !boss.dead && state === 'play') {
+      const bw = Math.min(W * 0.6, 520 * s), bh = 12 * s, bx = (W - bw) / 2, by = (hudEl.getBoundingClientRect().bottom + 14) * (W / innerWidth);
+      sctx.fillStyle = 'rgba(12,8,6,.8)'; sctx.fillRect(bx - 3, by - 3, bw + 6, bh + 6);
+      sctx.fillStyle = '#e0313f'; sctx.fillRect(bx, by, bw * Math.max(0, boss.hp / boss.maxHp), bh);
+      sctx.font = `${Math.round(14 * s)}px "Russo One", "Arial Black", sans-serif`; sctx.textAlign = 'center';
+      sctx.fillStyle = '#efe3cf'; sctx.fillText('СТРАЖ', W / 2, by + bh + 18 * s);
+    }
     sctx.textAlign = 'center';
     if (msg && state === 'play') {
       sctx.font = `${Math.round(18 * s)}px "Russo One", "Arial Black", sans-serif`;
