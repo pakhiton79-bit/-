@@ -85,6 +85,17 @@ body {
   color: var(--bone); font: 400 15px var(--f-num); letter-spacing: .04em;
   touch-action: none;
 }
+#swapBtn {
+  position: fixed;
+  right: calc(max(16px, env(safe-area-inset-right, 0px)) + 30px);
+  bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+  width: 56px; height: 56px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--bone) 40%, transparent);
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+  color: var(--bone); font: 600 20px var(--f-body);
+  touch-action: none;
+}
+#wpn { font-size: 18px; line-height: 26px; }
 #fireBtn.on { background: color-mix(in srgb, var(--ember) 65%, transparent); }
 
 .panel-wrap {
@@ -133,7 +144,8 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
 <div class="hud">
   <div class="stats">
     <div class="stat"><span class="label">Здоровье</span><span class="value" id="hp">100</span></div>
-    <div class="stat"><span class="label">Патроны</span><span class="value" id="ammo">24</span></div>
+    <div class="stat"><span class="label">Патроны</span><span class="value" id="ammo">30</span></div>
+    <div class="stat"><span class="label">Оружие</span><span class="value" id="wpn">Револьвер</span></div>
     <div class="stat"><span class="label">Уровень</span><span class="value" id="lvl">1</span></div>
     <div class="stat"><span class="label">Убито</span><span class="value" id="kills">0/0</span></div>
     <div class="stat"><span class="label">Очки</span><span class="value" id="score">0</span></div>
@@ -147,6 +159,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
 
 <div id="touchUi" hidden>
   <div id="stick"><div id="knob"></div></div>
+  <button id="swapBtn" aria-label="Сменить оружие">⇄</button>
   <button id="fireBtn" aria-label="Огонь">ОГОНЬ</button>
 </div>
 
@@ -157,13 +170,15 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     <p class="lead" id="lead">Спустись как можно глубже. На каждом уровне спрятан светящийся портал вниз. Твари просыпаются от выстрелов и идут на звук.</p>
     <dl class="keys" id="keysDesk">
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>ходить, <kbd>Shift</kbd> - бежать</dd>
-      <dt>Мышь</dt><dd>смотреть по сторонам, клик - выстрел</dd>
-      <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>поворот без мыши, <kbd>Пробел</kbd> - выстрел</dd>
+      <dt>Мышь</dt><dd>смотреть и целиться, клик - выстрел</dd>
+      <dt><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></dt><dd>револьвер, дробовик, посох (или колесо мыши)</dd>
+      <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>поворот без мыши, <kbd>PgUp</kbd><kbd>PgDn</kbd> - вверх/вниз, <kbd>Пробел</kbd> - выстрел</dd>
       <dt><kbd>Tab</kbd></dt><dd>карта, <kbd>Esc</kbd> - пауза</dd>
     </dl>
     <dl class="keys" id="keysTouch" hidden>
       <dt>Левый круг</dt><dd>ходить</dd>
-      <dt>Правая половина</dt><dd>веди пальцем, чтобы поворачиваться</dd>
+      <dt>Правая половина</dt><dd>веди пальцем, чтобы смотреть и целиться</dd>
+      <dt>Кнопка ⇄</dt><dd>сменить оружие</dd>
       <dt>Кнопка «Огонь»</dt><dd>держи, чтобы стрелять</dd>
     </dl>
     <div class="result" id="result" hidden>
@@ -353,6 +368,34 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     g.fillStyle = grd; g.beginPath(); g.arc(32, 32, 28, 0, TAU); g.fill();
   });
 
+  SPR.bolt = makeTex(g => {
+    const grd = g.createRadialGradient(32, 32, 2, 32, 32, 26);
+    grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.3, '#9ff4ff'); grd.addColorStop(0.7, 'rgba(120,80,255,.8)'); grd.addColorStop(1, 'rgba(60,0,140,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(32, 32, 26, 0, TAU); g.fill();
+  });
+  SPR.spark = makeTex(g => {
+    const grd = g.createRadialGradient(32, 32, 1, 32, 32, 18);
+    grd.addColorStop(0, '#fff6d0'); grd.addColorStop(0.4, 'rgba(255,190,90,.9)'); grd.addColorStop(1, 'rgba(120,80,40,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(32, 32, 18, 0, TAU); g.fill();
+  });
+  SPR.blood = makeTex(g => {
+    g.fillStyle = '#a3101e';
+    for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(32 + rand(-12, 12), 32 + rand(-12, 12), rand(3, 7), 0, TAU); g.fill(); }
+    g.fillStyle = '#e0313f'; g.beginPath(); g.arc(32, 32, 6, 0, TAU); g.fill();
+  });
+  SPR.boom = makeTex(g => {
+    const grd = g.createRadialGradient(32, 32, 2, 32, 32, 31);
+    grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.25, '#b6f6ff'); grd.addColorStop(0.6, 'rgba(140,90,255,.85)'); grd.addColorStop(1, 'rgba(60,0,120,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(32, 32, 31, 0, TAU); g.fill();
+  });
+
+  // ---------- Оружие ----------
+  const WEAPONS = [
+    { name: 'Револьвер', cost: 1, cool: 0.36, pellets: 1, spread: 0.006, vspread: 0.004, dmg: [24, 30] },
+    { name: 'Дробовик', cost: 2, cool: 0.85, pellets: 7, spread: 0.075, vspread: 0.05, dmg: [10, 15] },
+    { name: 'Посох', cost: 3, cool: 0.9, projectile: true },
+  ];
+
   // ---------- Звук ----------
   let actx = null, muted = false, noiseBuf = null;
   function initAudio() {
@@ -383,6 +426,11 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
   }
   const sfx = {
     shot() { noise(0.28, 0.35, 2600); tone(90, 0.15, 'square', 0.08, -50); },
+    pistol() { noise(0.12, 0.3, 4000); tone(160, 0.08, 'square', 0.06, -80); },
+    pump() { noise(0.05, 0.15, 3000, 3); tone(240, 0.05, 'square', 0.03, 0, 0.12); noise(0.05, 0.15, 2000, 3); },
+    magic() { tone(420, 0.3, 'sine', 0.07, 500); tone(630, 0.25, 'triangle', 0.04, 600, 0.03); },
+    boom() { noise(0.5, 0.35, 900); tone(70, 0.4, 'sine', 0.12, -40); },
+    swap() { tone(500, 0.04, 'square', 0.03); tone(350, 0.05, 'square', 0.03, 0, 0.05); },
     empty() { tone(900, 0.04, 'square', 0.03); },
     hurt() { tone(160, 0.2, 'sawtooth', 0.08, -80); },
     pain() { tone(320, 0.12, 'sawtooth', 0.05, -150); },
@@ -482,11 +530,13 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
   $('bestMenu').textContent = best;
 
   let state = 'menu', lastRecord = false;
+  let puffs = [];
   let P, level, enemies, items, shots, exit, score, totalKills, levelKills, msg, flowTimer, nextTimer, showMap = !isTouch;
 
   function newRun() {
     level = 1; score = 0; totalKills = 0;
-    P = { x: 0, y: 0, a: 0, hp: 100, ammo: 24, cool: 0, flash: 0, recoil: 0, hurt: 0, bob: 0, moving: 0, pick: 0 };
+    P = { x: 0, y: 0, a: 0, pitch: 0, hp: 100, ammo: 30, cool: 0, flash: 0, recoil: 0, hurt: 0, bob: 0, moving: 0, pick: 0,
+          weapon: 0, nextWeapon: 0, switchT: 0, sinceShot: 9 };
     startLevel();
   }
   function startLevel() {
@@ -495,7 +545,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     const nb = rooms[1] || L.exit;
     P.a = Math.atan2(nb.cy - L.start.cy, nb.cx - L.start.cx);
     exit = { x: L.exit.cx + 0.5, y: L.exit.cy + 0.5 };
-    enemies = []; items = []; shots = []; levelKills = 0;
+    enemies = []; items = []; shots = []; puffs = []; levelKills = 0;
     const free = (r) => {
       for (let i = 0; i < 30; i++) {
         const x = irand(r.x, r.x + r.w - 1), y = irand(r.y, r.y + r.h - 1);
@@ -527,7 +577,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
 
   // ---------- Ввод ----------
   const keys = new Set();
-  let mouseFire = false, touchFire = false, locked = false, lockFailed = false;
+  let mouseFire = false, touchFire = false, wantFire = false, locked = false, lockFailed = false;
   let stick = { id: null, x: 0, y: 0 }, look = { id: null, lx: 0 };
 
   addEventListener('keydown', e => {
@@ -535,9 +585,13 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     keys.add(e.code);
     if (e.repeat) return;
+    if (['Space', 'KeyF', 'ControlLeft'].includes(e.code) && state === 'play') wantFire = true;
     if (e.code === 'KeyP' || (e.code === 'Escape' && !locked)) togglePause();
     if (e.code === 'KeyM') toggleMute();
     if ((e.code === 'Enter' || e.code === 'Space') && (state === 'menu' || state === 'dead')) start();
+    if (e.code === 'Digit1' || e.code === 'Numpad1') selectWeapon(0);
+    if (e.code === 'Digit2' || e.code === 'Numpad2') selectWeapon(1);
+    if (e.code === 'Digit3' || e.code === 'Numpad3') selectWeapon(2);
   });
   addEventListener('keyup', e => keys.delete(e.code));
   addEventListener('blur', () => { keys.clear(); mouseFire = false; });
@@ -558,15 +612,21 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
   screen.addEventListener('mousedown', e => {
     if (isTouch || state !== 'play') return;
     if (!locked && !lockFailed) { requestLock(); return; }
-    if (e.button === 0) mouseFire = true;
+    if (e.button === 0) { mouseFire = true; wantFire = true; }
   });
   addEventListener('mouseup', () => { mouseFire = false; });
   addEventListener('mousemove', e => {
     if (state !== 'play') return;
-    if (locked) P.a += e.movementX * 0.0024;
-    else if (lockFailed && (e.buttons & 2)) P.a += e.movementX * 0.005;
+    if (locked) { P.a += e.movementX * 0.0024; lookPitch(-e.movementY * 0.0016); }
+    else if (lockFailed && (e.buttons & 2)) { P.a += e.movementX * 0.005; lookPitch(-e.movementY * 0.003); }
   });
   screen.addEventListener('contextmenu', e => e.preventDefault());
+  addEventListener('wheel', e => { if (state === 'play') selectWeapon((P.weapon + (e.deltaY > 0 ? 1 : 2)) % 3); }, { passive: true });
+  function lookPitch(d) { P.pitch = clamp(P.pitch + d, -0.45, 0.45); }
+  function selectWeapon(i) {
+    if (state !== 'play' || i === P.nextWeapon) return;
+    P.nextWeapon = i; P.switchT = 0.36; sfx.swap();
+  }
 
   // Сенсорное управление
   if (isTouch) {
@@ -576,7 +636,7 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     screen.addEventListener('pointerdown', e => {
       if (state !== 'play') return;
       if (e.clientX < innerWidth / 2 && stick.id === null) { stick.id = e.pointerId; moveStick(e); }
-      else if (look.id === null) { look.id = e.pointerId; look.lx = e.clientX; }
+      else if (look.id === null) { look.id = e.pointerId; look.lx = e.clientX; look.ly = e.clientY; }
     });
     const moveStick = e => {
       const r = stickEl.getBoundingClientRect();
@@ -588,40 +648,88 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     };
     screen.addEventListener('pointermove', e => {
       if (e.pointerId === stick.id) moveStick(e);
-      else if (e.pointerId === look.id) { P.a += (e.clientX - look.lx) * 0.009; look.lx = e.clientX; }
+      else if (e.pointerId === look.id) {
+        P.a += (e.clientX - look.lx) * 0.009; lookPitch(-(e.clientY - look.ly) * 0.005);
+        look.lx = e.clientX; look.ly = e.clientY;
+      }
     });
     const end = e => {
       if (e.pointerId === stick.id) { stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; }
       if (e.pointerId === look.id) look.id = null;
     };
     screen.addEventListener('pointerup', end); screen.addEventListener('pointercancel', end);
+    $('swapBtn').addEventListener('pointerdown', e => { e.preventDefault(); selectWeapon((P.nextWeapon + 1) % 3); });
     const fb = $('fireBtn');
-    fb.addEventListener('pointerdown', e => { e.preventDefault(); touchFire = true; fb.classList.add('on'); });
+    fb.addEventListener('pointerdown', e => { e.preventDefault(); touchFire = true; wantFire = true; fb.classList.add('on'); });
     const fend = () => { touchFire = false; fb.classList.remove('on'); };
     fb.addEventListener('pointerup', fend); fb.addEventListener('pointercancel', fend); fb.addEventListener('pointerleave', fend);
   }
 
   // ---------- Логика ----------
+  // Где на экране стоит тварь: масштаб, высота над полом и доля текстуры, по которой можно попасть
+  function geom(e) {
+    if (e.kind === 'eye') return { scale: 0.62, z: 0.3 + Math.sin(e.phase) * 0.05, h0: 0.1, h1: 0.86 };
+    return { scale: 0.85, z: 0, h0: 0.28, h1: 1 };
+  }
+  function puff(x, y, z, tex, scale, life) { puffs.push({ x, y, z, tex, scale, life, max: life }); }
+
   function shoot() {
-    if (P.cool > 0) return;
-    if (P.ammo <= 0) { P.cool = 0.35; sfx.empty(); msg = { text: 'Патроны кончились', t: 1.2 }; return; }
-    P.ammo--; P.cool = 0.55; P.flash = 1; P.recoil = 1;
-    sfx.shot();
+    if (P.cool > 0 || P.switchT > 0) return;
+    const Wp = WEAPONS[P.weapon];
+    if (P.ammo < Wp.cost) { P.cool = 0.35; sfx.empty(); msg = { text: P.ammo ? 'Мало патронов для этого оружия' : 'Патроны кончились', t: 1.2 }; return; }
+    P.ammo -= Wp.cost; P.cool = Wp.cool; P.recoil = 1; P.sinceShot = 0;
+    P.flash = Wp.projectile ? 0.5 : 1;
     // шум будит тварей поблизости
     for (const e of enemies) if (!e.dead && flow[(e.y | 0) * N + (e.x | 0)] >= 0 && flow[(e.y | 0) * N + (e.x | 0)] < 12) e.awake = true;
-    for (let p = 0; p < 6; p++) {
-      const a = P.a + rand(-0.07, 0.07);
+    const ca = Math.cos(P.a), sa = Math.sin(P.a);
+    if (Wp.projectile) {
+      sfx.magic();
+      const v = 8;
+      shots.push({ player: true, x: P.x + ca * 0.3, y: P.y + sa * 0.3, z: 0.5, vx: ca * v, vy: sa * v, vz: P.pitch * v, life: 4 });
+      return;
+    }
+    if (P.weapon === 1) { sfx.shot(); setTimeout(sfx.pump, 330); } else sfx.pistol();
+    const half = RH / 2, hz = half + P.pitch * RH;
+    for (let p = 0; p < Wp.pellets; p++) {
+      const a = P.a + rand(-Wp.spread, Wp.spread);
+      const yc = half + rand(-Wp.vspread, Wp.vspread) * RH;
       const wd = rayDist(P.x, P.y, a);
-      let hit = null, hd = wd;
+      const cosOff = Math.cos(a - P.a);
+      let hit = null, hd = wd, ht = 0;
       for (const e of enemies) {
         if (e.dead) continue;
         const dx = e.x - P.x, dy = e.y - P.y, d = Math.hypot(dx, dy);
         if (d >= hd) continue;
         let da = Math.atan2(dy, dx) - a;
         da = Math.atan2(Math.sin(da), Math.cos(da));
-        if (Math.abs(da) < Math.atan(0.32 / d)) { hit = e; hd = d; }
+        if (Math.abs(da) >= Math.atan(0.3 / d)) continue;
+        const g = geom(e), tY = d * cosOff;
+        const size = g.scale * RH / tY, bottom = hz + (0.5 - g.z) * RH / tY, top = bottom - size;
+        if (yc < top + g.h0 * size || yc > top + g.h1 * size) continue;
+        hit = e; hd = d; ht = tY;
       }
-      if (hit) damageEnemy(hit, irand(10, 16) * (hd < 2.5 ? 1.4 : 1));
+      const dmg = irand(Wp.dmg[0], Wp.dmg[1]);
+      if (hit) {
+        damageEnemy(hit, P.weapon === 1 && hd < 2.5 ? dmg * 1.4 : dmg);
+        const z = 0.5 - (yc - hz) * ht / RH;
+        puff(P.x + Math.cos(a) * (hd - 0.2), P.y + Math.sin(a) * (hd - 0.2), z, SPR.blood, 0.22, 0.25);
+      } else {
+        // дробь ушла в стену, пол или потолок
+        let dist = wd, z = 0.5 - (yc - hz) * wd * cosOff / RH;
+        if (z < 0) { dist = 0.5 * RH / (yc - hz) / cosOff; z = 0.03; }
+        else if (z > 1) { dist = -0.5 * RH / (yc - hz) / cosOff; z = 0.97; }
+        puff(P.x + Math.cos(a) * (dist - 0.04), P.y + Math.sin(a) * (dist - 0.04), z, SPR.spark, 0.16, 0.18);
+      }
+    }
+  }
+  function explode(x, y, z) {
+    puff(x, y, Math.max(0.35, z), SPR.boom, 1.1, 0.35);
+    P.flash = Math.max(P.flash, 0.8);
+    sfx.boom();
+    for (const e of enemies) {
+      if (e.dead) continue;
+      const d = Math.hypot(e.x - x, e.y - y);
+      if (d < 1.8 && los(x, y, e.x, e.y)) damageEnemy(e, 15 + 60 * (1 - d / 1.8));
     }
   }
   function damageEnemy(e, dmg) {
@@ -664,8 +772,17 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     P.moving = Math.min(1, mag);
     P.bob += dt * (run ? 13 : 9) * P.moving;
 
-    if (mouseFire || touchFire || keys.has('Space') || keys.has('KeyF') || keys.has('ControlLeft')) shoot();
+    // короткое нажатие между кадрами тоже засчитывается
+    if (wantFire || mouseFire || touchFire || keys.has('Space') || keys.has('KeyF') || keys.has('ControlLeft')) { if (P.cool <= 0 && P.switchT <= 0) wantFire = false; shoot(); }
     P.cool = Math.max(0, P.cool - dt);
+    P.sinceShot += dt;
+    if (keys.has('PageUp')) lookPitch(dt * 1.2);
+    if (keys.has('PageDown')) lookPitch(-dt * 1.2);
+    if (P.switchT > 0) {
+      const before = P.switchT;
+      P.switchT = Math.max(0, P.switchT - dt);
+      if (before > 0.18 && P.switchT <= 0.18) P.weapon = P.nextWeapon;
+    }
     P.flash = Math.max(0, P.flash - dt * 9);
     P.recoil = Math.max(0, P.recoil - dt * 5);
     P.hurt = Math.max(0, P.hurt - dt * 2.5);
@@ -726,11 +843,24 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
 
     // огненные плевки
     for (const s of shots) {
+      if (s.player) {
+        const px = s.x, py = s.y;
+        s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.life -= dt;
+        if (isWall(s.x, s.y) || s.z < 0.05 || s.z > 0.95) { s.life = 0; explode(px, py, s.z); continue; }
+        for (const e of enemies) {
+          if (e.dead) continue;
+          const g = geom(e);
+          if (Math.hypot(e.x - s.x, e.y - s.y) < 0.45 && Math.abs(s.z - (g.z + g.scale * 0.5)) < 0.45) { s.life = 0; explode(s.x, s.y, s.z); break; }
+        }
+        continue;
+      }
       s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
       if (isWall(s.x, s.y)) s.life = 0;
       else if (Math.hypot(s.x - P.x, s.y - P.y) < 0.35) { s.life = 0; hurtPlayer(irand(9, 14)); }
     }
     shots = shots.filter(s => s.life > 0);
+    for (const q of puffs) q.life -= dt;
+    puffs = puffs.filter(q => q.life > 0);
 
     // предметы
     for (const it of items) {
@@ -755,10 +885,10 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
 
   let hudCache = {};
   function updateHud(force) {
-    const vals = { hp: Math.ceil(P.hp), ammo: P.ammo, lvl: level, kills: levelKills + '/' + enemies.length, score };
+    const vals = { hp: Math.ceil(P.hp), ammo: P.ammo, wpn: WEAPONS[P.nextWeapon].name, lvl: level, kills: levelKills + '/' + enemies.length, score };
     for (const k in vals) if (force || hudCache[k] !== vals[k]) { $(k).textContent = vals[k]; hudCache[k] = vals[k]; }
     $('hp').classList.toggle('low', P.hp <= 30);
-    $('ammo').classList.toggle('empty', P.ammo === 0);
+    $('ammo').classList.toggle('empty', P.ammo < WEAPONS[P.nextWeapon].cost);
   }
 
   // ---------- Рендер ----------
@@ -784,25 +914,26 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
   function render3d(now) {
     const dirX = Math.cos(P.a), dirY = Math.sin(P.a);
     const plX = -dirY * FOVK, plY = dirX * FOVK;
-    const half = RH / 2, posZ = 0.5 * RH;
+    const half = RH / 2 + P.pitch * RH, posZ = 0.5 * RH;
     const light = 1 + P.flash * 0.6;
     const rx0 = dirX - plX, ry0 = dirY - plY, rx1 = dirX + plX, ry1 = dirY + plY;
 
     buf.fill(0xff000000);
     // пол и потолок
-    for (let y = Math.floor(half) + 1; y < RH; y++) {
-      const rowDist = posZ / (y - half);
+    for (let y = 0; y < RH; y++) {
+      const floor = y > half;
+      if (Math.abs(y - half) < 0.5) continue;
+      const rowDist = posZ / Math.abs(y - half);
       const stx = rowDist * (rx1 - rx0) / RW, sty = rowDist * (ry1 - ry0) / RW;
       let fx = P.x + rowDist * rx0, fy = P.y + rowDist * ry0;
       const f = Math.min(1, Math.max(0, 1.1 - rowDist / FOG_D) * light);
-      const fc = f * 0.8;
-      const yo = y * RW, yc = (RH - 1 - y) * RW;
+      if (f <= 0) continue;
+      const tex = floor ? FLOOR : CEIL, fk = floor ? f : f * 0.8;
+      const yo = y * RW;
       for (let x = 0; x < RW; x++) {
         const tx = ((fx - Math.floor(fx)) * T) & 63, ty = ((fy - Math.floor(fy)) * T) & 63;
         fx += stx; fy += sty;
-        const ti = ty * T + tx;
-        buf[yo + x] = shade(FLOOR[ti], f);
-        buf[yc + x] = shade(CEIL[ti], fc);
+        buf[yo + x] = shade(tex[ty * T + tx], fk);
       }
     }
 
@@ -848,11 +979,17 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
         const frames = SPR[e.kind + (e.hurt > 0 ? 'Hurt' : '')];
         tex = e.attackT > 0 ? frames[2] : frames[e.awake ? (Math.floor(e.anim) % 2) : 0];
       }
-      const z = e.dead ? 0 : e.kind === 'eye' ? 0.3 + Math.sin(e.phase) * 0.05 : 0;
-      list.push({ x: e.x, y: e.y, tex, scale: e.dead ? 0.7 : e.kind === 'eye' ? 0.62 : 0.72, z, bright: false });
+      const g = geom(e);
+      list.push({ x: e.x, y: e.y, tex, scale: e.dead ? 0.7 : g.scale, z: e.dead ? 0 : g.z, bright: false });
     }
     for (const it of items) list.push({ x: it.x, y: it.y, tex: SPR[it.kind], scale: 0.4, z: Math.sin(it.phase) * 0.03, bright: false });
-    for (const s of shots) list.push({ x: s.x, y: s.y, tex: SPR.fireball, scale: 0.3, z: 0.38, bright: true });
+    for (const s of shots) list.push(s.player
+      ? { x: s.x, y: s.y, tex: SPR.bolt, scale: 0.28, z: s.z - 0.14, bright: true }
+      : { x: s.x, y: s.y, tex: SPR.fireball, scale: 0.3, z: 0.38, bright: true });
+    for (const q of puffs) {
+      const sc = q.scale * (q.tex === SPR.boom ? 1.4 - 0.6 * q.life / q.max : 1);
+      list.push({ x: q.x, y: q.y, tex: q.tex, scale: sc, z: q.z - sc / 2, bright: true });
+    }
     list.push({ x: exit.x, y: exit.y, tex: SPR.portal[Math.floor(now / 160) % 2], scale: 1, z: 0, bright: true });
 
     const invDet = 1 / (plX * dirY - dirX * plY);
@@ -886,45 +1023,102 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
       }
     }
     vctx.putImageData(img, 0, 0);
+    if (state !== 'dead') drawWeapon();
   }
 
-  function drawWeapon(W, H, now) {
-    const s = Math.min(W, H * 1.3) / 640;
-    const bobAmt = reduceMotion ? 0 : 1;
-    const bx = Math.cos(P.bob) * 10 * s * P.moving * bobAmt;
-    const by = Math.abs(Math.sin(P.bob)) * 12 * s * P.moving * bobAmt + P.recoil * 26 * s;
-    const cx = W / 2 + 40 * s + bx, base = H + 10 * s + by;
-    sctx.save();
-    sctx.translate(cx, base);
-    // вспышка
-    if (P.flash > 0) {
-      const fr = 70 * s * (0.6 + P.flash * 0.6);
-      const grd = sctx.createRadialGradient(-36 * s, -250 * s, 0, -36 * s, -250 * s, fr);
-      grd.addColorStop(0, 'rgba(255,250,220,.95)'); grd.addColorStop(0.4, 'rgba(255,170,60,.8)'); grd.addColorStop(1, 'rgba(255,90,20,0)');
-      sctx.fillStyle = grd; sctx.beginPath(); sctx.arc(-36 * s, -250 * s, fr, 0, TAU); sctx.fill();
+  // Оружие рисуется прямо в маленький кадр, поэтому оно такое же пиксельное, как мир.
+  // Все грани уходят в точку схода в центре экрана, где стоит прицел.
+  const SKIN = '#c08a66', SKIN_D = '#93603f', SLEEVE = '#3b2b21', SLEEVE_D = '#261b14';
+  const STEEL_D = '#1f1c1a';
+  function drawWeapon() {
+    const g = vctx, u = Math.min(RH, RW * 1.2) / 200, VX = RW / 2, VY = RH / 2;
+    const bobK = reduceMotion ? 0 : 1;
+    let ox = Math.cos(P.bob) * 5 * u * P.moving * bobK;
+    let oy = Math.abs(Math.sin(P.bob)) * 6 * u * P.moving * bobK;
+    if (P.switchT > 0) oy += (P.switchT > 0.18 ? (0.36 - P.switchT) : P.switchT) / 0.18 * 120 * u;
+    const W = P.weapon;
+    oy += P.recoil * [10, 18, 6][W] * u;
+    const pt = (x, y, t) => [x + (VX - x) * t, y + (VY - y) * t];
+    const poly = pts => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); g.fill(); };
+    const ell = (x, y, rx, ry, rot = 0) => { g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, TAU); g.fill(); };
+    const hgrad = (x0, x1, c0, c1, c2) => { const gr = g.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, c0); gr.addColorStop(0.45, c1); gr.addColorStop(1, c2); return gr; };
+    // Брусок: ближний торец (x0..x1, yt..yb) лежит у камеры, t0..t1 - насколько он уходит вглубь
+    function prism(x0, x1, yt, yb, t0, t1, top, side) {
+      const a = pt(x0, yt, t0), b = pt(x1, yt, t0), c = pt(x1, yt, t1), d = pt(x0, yt, t1);
+      g.fillStyle = side;
+      if (x1 < VX) poly([b, c, pt(x1, yb, t1), pt(x1, yb, t0)]);
+      if (x0 > VX) poly([a, d, pt(x0, yb, t1), pt(x0, yb, t0)]);
+      g.fillStyle = top; poly([a, b, c, d]);
     }
-    // два ствола
-    for (const ox of [-52, -20]) {
-      const g = sctx.createLinearGradient(ox * s, 0, (ox + 30) * s, 0);
-      g.addColorStop(0, '#1d1a18'); g.addColorStop(0.45, '#6b625a'); g.addColorStop(1, '#141210');
-      sctx.fillStyle = g;
-      sctx.beginPath(); sctx.moveTo((ox + 2) * s, -230 * s); sctx.lineTo((ox + 28) * s, -230 * s); sctx.lineTo((ox + 34) * s, -60 * s); sctx.lineTo((ox - 4) * s, -60 * s); sctx.fill();
-      sctx.fillStyle = '#050403'; sctx.beginPath(); sctx.ellipse((ox + 15) * s, -230 * s, 11 * s, 5 * s, 0, 0, TAU); sctx.fill();
+    function hand(x, y, s, rot) {
+      g.fillStyle = SKIN; ell(x, y, 11 * s, 8 * s, rot);
+      g.fillStyle = SKIN_D;
+      for (let i = 0; i < 4; i++) ell(x + (i - 1.5) * 5 * s * Math.cos(rot), y - 5 * s + (i - 1.5) * 5 * s * Math.sin(rot), 3 * s, 2.4 * s, rot);
     }
-    // цевьё
-    const wood = sctx.createLinearGradient(-80 * s, 0, 40 * s, 0);
-    wood.addColorStop(0, '#3b2012'); wood.addColorStop(0.5, '#7a4526'); wood.addColorStop(1, '#2c170c');
-    sctx.fillStyle = wood;
-    sctx.beginPath(); sctx.moveTo(-66 * s, -150 * s); sctx.lineTo(28 * s, -150 * s); sctx.lineTo(46 * s, 0); sctx.lineTo(-86 * s, 0); sctx.fill();
-    sctx.fillStyle = 'rgba(0,0,0,.25)';
-    for (let i = 0; i < 4; i++) sctx.fillRect(-60 * s, (-130 + i * 26) * s, 84 * s, 4 * s);
-    // рука
-    sctx.fillStyle = '#b07a5a';
-    sctx.beginPath(); sctx.ellipse(-30 * s, -95 * s, 50 * s, 26 * s, -0.15, 0, TAU); sctx.fill();
-    sctx.fillStyle = '#8f5f44';
-    for (let i = 0; i < 3; i++) { sctx.beginPath(); sctx.ellipse((-58 + i * 24) * s, -112 * s, 11 * s, 9 * s, 0, 0, TAU); sctx.fill(); }
-    sctx.fillStyle = '#3d2a1e'; sctx.fillRect(-90 * s, -70 * s, 120 * s, 80 * s);
-    sctx.restore();
+    function flash(x, y, r) {
+      if (P.flash <= 0) return;
+      const fr = r * (0.6 + P.flash * 0.7);
+      const gr = g.createRadialGradient(x, y, 0, x, y, fr);
+      gr.addColorStop(0, 'rgba(255,250,225,1)'); gr.addColorStop(0.35, 'rgba(255,190,80,.9)'); gr.addColorStop(1, 'rgba(255,90,20,0)');
+      g.fillStyle = gr; ell(x, y, fr, fr);
+    }
+    g.save();
+    g.translate(ox, oy);
+    const B = RH; // нижний край кадра
+    if (W === 0) {
+      // Револьвер в правой руке
+      const bx = VX + 30 * u;
+      g.fillStyle = SLEEVE_D; poly([[bx - 4 * u, B + 4], [bx + 90 * u, B + 4], [bx + 60 * u, B - 22 * u], [bx + 14 * u, B - 26 * u]]);
+      prism(bx - 8 * u, bx + 8 * u, B - 20 * u, B, 0.16, 0.6, hgrad(bx - 8 * u, bx + 8 * u, '#2a2724', '#a39c92', '#2a2724'), STEEL_D);
+      const m = pt(bx, B - 20 * u, 0.585);
+      g.fillStyle = STEEL_D; poly([[m[0] - 1.6 * u, m[1]], [m[0] + 1.6 * u, m[1]], [m[0] + 0.8 * u, m[1] - 4 * u], [m[0] - 0.8 * u, m[1] - 4 * u]]);
+      prism(bx - 17 * u, bx + 17 * u, B - 12 * u, B + 40 * u, 0, 0.17, hgrad(bx - 17 * u, bx + 17 * u, '#2e2b28', '#878077', '#282523'), STEEL_D);
+      g.fillStyle = 'rgba(0,0,0,.5)';
+      for (let i = -1; i <= 1; i++) {
+        const a = pt(bx + i * 8 * u, B - 12 * u, 0.01), b = pt(bx + i * 8 * u, B - 12 * u, 0.16);
+        poly([[a[0] - 1.6 * u, a[1]], [a[0] + 1.6 * u, a[1]], [b[0] + 1.2 * u, b[1]], [b[0] - 1.2 * u, b[1]]]);
+      }
+      g.fillStyle = STEEL_D; poly([[bx - 4 * u, B - 6 * u], [bx + 4 * u, B - 6 * u], [bx + 3 * u, B - 15 * u], [bx - 3 * u, B - 15 * u]]);
+      hand(bx + 30 * u, B + 8 * u, 2.6 * u, -0.3);
+      g.fillStyle = SKIN; ell(bx - 17 * u, B + 4 * u, 6 * u, 11 * u, 0.5);
+      const mz = pt(bx, B - 12 * u, 0.62); flash(mz[0], mz[1], 30 * u);
+    } else if (W === 1) {
+      // Помповый дробовик двумя руками
+      const bx = VX + 10 * u;
+      const k = P.sinceShot, pump = k > 0.25 && k < 0.7 ? Math.sin(Math.PI * (k - 0.25) / 0.45) * 0.1 : 0;
+      g.fillStyle = SLEEVE_D; poly([[bx + 20 * u, B + 4], [bx + 110 * u, B + 4], [bx + 80 * u, B - 18 * u], [bx + 34 * u, B - 22 * u]]);
+      prism(bx - 40 * u, bx + 40 * u, B - 5 * u, B + 60 * u, 0, 0.2, hgrad(bx - 40 * u, bx + 40 * u, '#1b1917', '#5c564f', '#181614'), STEEL_D);
+      prism(bx - 13 * u, bx + 13 * u, B - 10 * u, B + 20 * u, 0.15, 0.72, hgrad(bx - 13 * u, bx + 13 * u, '#24211e', '#aaa398', '#24211e'), STEEL_D);
+      const bead = pt(bx, B - 10 * u, 0.71);
+      g.fillStyle = '#efe7d6'; ell(bead[0], bead[1] - 1.2 * u, 1.6 * u, 1.4 * u);
+      prism(bx - 22 * u, bx + 22 * u, B - 2 * u, B + 40 * u, 0.32 - pump, 0.55 - pump, hgrad(bx - 22 * u, bx + 22 * u, '#3f2214', '#a8693f', '#351c10'), '#2a160c');
+      g.fillStyle = 'rgba(0,0,0,.35)';
+      for (let i = 0; i < 5; i++) {
+        const t = 0.35 + i * 0.04 - pump, a = pt(bx - 18 * u, B - 2 * u, t), b = pt(bx + 18 * u, B - 2 * u, t);
+        g.fillRect(a[0], a[1], b[0] - a[0], 1.4 * u);
+      }
+      const lh = pt(bx - 24 * u, B + 12 * u, 0.44 - pump);
+      g.fillStyle = SLEEVE; poly([[-4, B + 4], [VX - 30 * u, B + 4], [lh[0] + 10 * u, lh[1] + 12 * u], [lh[0] - 14 * u, lh[1] + 2 * u]]);
+      hand(lh[0], lh[1], 2.1 * u, 0.7);
+      hand(bx + 42 * u, B - 4 * u, 2.7 * u, -0.4);
+      const mz = pt(bx, B - 2 * u, 0.74); flash(mz[0], mz[1], 46 * u);
+    } else {
+      // Посох с кристаллом
+      const bx = VX + 46 * u, yt = B + 10 * u;
+      g.fillStyle = SLEEVE_D; poly([[bx - 10 * u, B + 4], [bx + 80 * u, B + 4], [bx + 46 * u, B - 20 * u], [bx + 2 * u, B - 24 * u]]);
+      prism(bx - 6 * u, bx + 6 * u, yt, yt + 12 * u, 0, 0.62, hgrad(bx - 6 * u, bx + 6 * u, '#3f2214', '#b67a48', '#351c10'), '#2a160c');
+      g.fillStyle = '#d0a040';
+      for (const t of [0.36, 0.5]) { const a = pt(bx - 6.5 * u, yt, t), b = pt(bx + 6.5 * u, yt, t); g.fillRect(a[0], a[1] - 2 * u * (1 - t), b[0] - a[0], 4 * u * (1 - t)); }
+      const c = pt(bx, yt, 0.62), cs = 9 * u, pulse = 0.75 + 0.25 * Math.sin(performance.now() / 180) + P.recoil * 0.8;
+      const gr = g.createRadialGradient(c[0], c[1] - cs, 0, c[0], c[1] - cs, cs * 3 * pulse);
+      gr.addColorStop(0, 'rgba(200,250,255,.9)'); gr.addColorStop(0.4, 'rgba(110,200,255,.45)'); gr.addColorStop(1, 'rgba(90,60,255,0)');
+      g.fillStyle = gr; ell(c[0], c[1] - cs, cs * 3 * pulse, cs * 3 * pulse);
+      g.fillStyle = '#7ef0ff'; poly([[c[0], c[1] - cs * 2.2], [c[0] + cs * 0.7, c[1] - cs], [c[0], c[1] + cs * 0.2], [c[0] - cs * 0.7, c[1] - cs]]);
+      g.fillStyle = '#e6fdff'; poly([[c[0], c[1] - cs * 2.2], [c[0] + cs * 0.25, c[1] - cs], [c[0], c[1] - cs * 0.4], [c[0] - cs * 0.3, c[1] - cs]]);
+      const hp = pt(bx, yt + 4 * u, 0.2);
+      hand(hp[0], hp[1], 2.4 * u, -0.25);
+    }
+    g.restore();
   }
 
   function drawMinimap(W, H) {
@@ -964,7 +1158,6 @@ kbd { font: 600 12px var(--f-body); padding: 1px 6px; border: 1px solid var(--li
     if (!P) { sctx.fillStyle = '#0c0806'; sctx.fillRect(0, 0, W, H); return; }
     render3d(now);
     sctx.drawImage(view, 0, 0, W, H);
-    if (state !== 'dead') drawWeapon(W, H, now);
     const s = Math.min(W, H) / 600;
     // прицел
     sctx.fillStyle = 'rgba(239,227,207,.8)';
