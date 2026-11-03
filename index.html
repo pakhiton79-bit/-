@@ -203,6 +203,12 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
 .strip-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .strip-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
 
+#tourResults { transition: opacity .15s; }
+#tourResults.busy { opacity: .45; cursor: progress; }
+.method { margin: 14px 0 6px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; background: var(--bg); font-size: 14px; }
+.method summary { cursor: pointer; font-weight: 600; }
+.method ul { margin: 10px 0 0; padding-left: 20px; }
+.method li { margin-bottom: 8px; }
 .verdict { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: var(--bg); }
 .lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 10px; }
 .lesson { background: var(--bg); border-radius: 14px; padding: 16px; }
@@ -314,7 +320,17 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
   <!-- 4. Group tournament + evolution -->
   <section class="card" id="tournament">
     <div class="sec-head"><span class="num">04</span><h2>Групповой турнир и эволюция</h2></div>
-    <p>Как в знаменитом турнире Роберта Аксельрода (1980): каждая отмеченная стратегия играет с каждой, включая копию самой себя. По этим же матчам строится эволюция популяции. Результаты пересчитываются сразу, как только вы меняете выбор или настройки.</p>
+    <p>Как в турнире Роберта Аксельрода (1980): каждая отмеченная стратегия играет с каждой, включая копию самой себя. По этим же матчам строится эволюция популяции. Все числа в этом разделе — точные математические ожидания, а не результаты случайных розыгрышей, поэтому при тех же настройках они всегда одинаковы.</p>
+    <details class="method">
+      <summary>Как считается</summary>
+      <ul>
+        <li><b>Матч из N раундов.</b> Каждая стратегия — конечный автомат: в состоянии s она молчит с вероятностью p(s), после раунда переходит в новое состояние по фактическим ходам обоих игроков. Шум ε: каждый ход каждого игрока независимо с вероятностью ε заменяется на противоположный, и стратегии видят уже изменённые ходы.</li>
+        <li><b>Матрица M.</b> M<sub>ij</sub> — математическое ожидание среднего за раунд выигрыша стратегии i против j. Считается точно: распределение вероятностей по парам состояний переносится от раунда к раунду, без случайных розыгрышей. Погрешность только от округления чисел с плавающей точкой, порядка 10⁻¹².</li>
+        <li><b>Турнир.</b> Оценка стратегии i: (1/n)·Σ<sub>j</sub> M<sub>ij</sub>, где сумма идёт по всем n отмеченным стратегиям, включая j = i.</li>
+        <li><b>Эволюция.</b> Дискретная репликаторная динамика: x<sub>i</sub>(t+1) = x<sub>i</sub>(t)·f<sub>i</sub>(t)/f̄(t), где f<sub>i</sub> = Σ<sub>j</sub> M<sub>ij</sub>x<sub>j</sub>, f̄ = Σ<sub>i</sub> x<sub>i</sub>f<sub>i</sub>, x<sub>i</sub>(0) = 1/n. Требует неотрицательных выигрышей. В этой модели доля никогда не становится ровно нулём, поэтому в выводах указано, у кого она ниже 0,1%.</li>
+        <li><b>Дуэль и партия с компьютером</b> — одна случайная реализация матча. В дуэли рядом показано точное ожидание.</li>
+      </ul>
+    </details>
     <div class="row" style="margin-top:14px">
       <button id="pickAll">Выбрать все</button>
       <button id="pickNone">Снять все</button>
@@ -324,7 +340,7 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
     <div class="controls three">
       <label>Раундов в матче: <output id="roundsOut">200</output>
         <input type="range" id="rounds" min="5" max="500" step="5" value="200"></label>
-      <label>Шум (ход случайно меняется на противоположный): <output id="noiseOut">0%</output>
+      <label>Шум ε (вероятность, что ход заменится на противоположный): <output id="noiseOut">0%</output>
         <input type="range" id="noise" min="0" max="20" step="1" value="0"></label>
       <label>Поколений в эволюции: <output id="gensOut">150</output>
         <input type="range" id="gens" min="20" max="500" step="10" value="150"></label>
@@ -334,13 +350,13 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
       <span id="tourEmptyText"></span>
     </div>
     <div id="tourResults">
-      <h3 style="margin-bottom:8px">Средний выигрыш за раунд</h3>
+      <h3 style="margin-bottom:8px">Ожидаемый средний выигрыш за раунд</h3>
       <div class="chart-box" id="tourBox"><canvas id="tourChart"></canvas></div>
       <div class="verdict" id="tourVerdict"></div>
 
       <h3 style="margin:30px 0 6px">Эволюция: доля стратегий в популяции</h3>
-      <p class="small muted">Представим популяцию, где эти стратегии встречаются случайно. Кто набирает больше среднего, размножается, остальные вымирают. Начальная доля у всех одинаковая.</p>
-      <div class="chart-box"><canvas id="evoChart"></canvas></div>
+      <p class="small muted">Представим популяцию, где эти стратегии встречаются случайно. Доля стратегии растёт, если её средний выигрыш против текущей популяции выше среднего по популяции, и падает, если ниже. Начальная доля у всех одинаковая.</p>
+      <div class="chart-box" id="evoBox"><canvas id="evoChart"></canvas></div>
       <div class="verdict" id="evoVerdict"></div>
     </div>
   </section>
@@ -348,14 +364,14 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
   <!-- 5. Lessons -->
   <section class="card" id="lessons">
     <div class="sec-head"><span class="num">05</span><h2>Что из этого следует</h2></div>
-    <p>Аксельрод выяснил, что у успешных стратегий в повторяющейся игре есть четыре общих черты:</p>
+    <p>По итогам своих турниров Роберт Аксельрод выделил четыре черты успешных стратегий («Эволюция кооперации», 1984):</p>
     <div class="lessons">
-      <div class="lesson"><h3>Доброта</h3><p class="small">Никогда не предавать первым. Почти все лидеры турнира начинают с сотрудничества.</p></div>
-      <div class="lesson"><h3>Ответ</h3><p class="small">Наказывать за предательство. Добряка, который всё прощает, эгоисты съедают.</p></div>
-      <div class="lesson"><h3>Прощение</h3><p class="small">Вернуться к сотрудничеству, когда соперник исправился. Включите шум, и Злопамятный начнёт проигрывать.</p></div>
-      <div class="lesson"><h3>Ясность</h3><p class="small">Быть понятным. Сопернику легко научиться сотрудничать с «Оком за око».</p></div>
+      <div class="lesson"><h3>Доброта</h3><p class="small">Не предавать первым. В первом турнире Аксельрода все восемь лучших стратегий были такими.</p></div>
+      <div class="lesson"><h3>Ответ</h3><p class="small">Наказывать за предательство. Добряк этого не делает и без шума против Эгоиста получает минимальный выигрыш S в каждом раунде.</p></div>
+      <div class="lesson"><h3>Прощение</h3><p class="small">Возвращаться к сотрудничеству. Две копии «Ока за око» после одной ошибки из-за шума по очереди мстят друг другу до следующей ошибки. Это видно в дуэли.</p></div>
+      <div class="lesson"><h3>Ясность</h3><p class="small">Быть понятным. Аксельрод объяснял успех «Ока за око» тем, что сопернику легко распознать это правило и подстроиться к нему.</p></div>
     </div>
-    <p class="small muted" style="margin-top:16px">В одном раунде разумно предавать. Но если игра повторяется и неизвестно, когда она закончится, «тень будущего» делает сотрудничество выгодным.</p>
+    <p class="small muted" style="margin-top:16px">В одном раунде предательство строго доминирует. Если же игра повторяется и её конец заранее неизвестен, сотрудничество может быть выгодным. Аксельрод называл это «тенью будущего». В этом симуляторе число раундов фиксировано, но ни одна из стратегий его не учитывает.</p>
   </section>
 
 </main>
@@ -371,94 +387,160 @@ function payoff(a, b) {
   return pay.P;
 }
 
-// Seeded RNG so tournament runs are reproducible
-function mulberry32(seed) {
-  return function () {
-    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
-
-const last = (h) => h[h.length - 1];
-
-// play(myHistory, opponentHistory, rng) -> C or D
+// Each strategy is a finite automaton with integer states 0..size-1:
+//   p(s)            probability of playing C in state s (before noise)
+//   next(s, my, op) next state after the realized moves of this round
+// The same definition drives the random matches (play, duel) and the exact expectations (tournament).
+const MAJ = 600; // counter offset for «Большинство»; matches are at most 500 rounds
 const STRATS = [
   { id: 'tft', name: 'Око за око', color: '#3b6fd8', random: false,
-    desc: 'Начинает с сотрудничества, потом повторяет прошлый ход соперника.',
-    play: (me, op) => op.length ? last(op) : C },
+    desc: 'Первым ходом молчит, дальше повторяет прошлый ход соперника.',
+    size: 2, init: C, p: s => s, next: (s, my, op) => op },
   { id: 'allc', name: 'Добряк', color: '#2f9e6b', random: false,
-    desc: 'Всегда молчит, что бы ни случилось.',
-    play: () => C },
+    desc: 'Всегда молчит.',
+    size: 1, init: 0, p: () => 1, next: () => 0 },
   { id: 'alld', name: 'Эгоист', color: '#d9483b', random: false,
     desc: 'Всегда сдаёт.',
-    play: () => D },
+    size: 1, init: 0, p: () => 0, next: () => 0 },
   { id: 'grim', name: 'Злопамятный', color: '#7a4bc4', random: false,
-    desc: 'Сотрудничает, пока его не предали. После этого предаёт навсегда.',
-    play: (me, op) => op.includes(D) ? D : C },
+    desc: 'Молчит, пока соперник ни разу не сдал. После первого предательства сдаёт до конца игры.',
+    size: 2, init: 0, p: s => s ? 0 : 1, next: (s, my, op) => (s || op === D) ? 1 : 0 },
   { id: 'tf2t', name: 'Око за два ока', color: '#1aa3b8', random: false,
-    desc: 'Мстит, только если его предали два раза подряд.',
-    play: (me, op) => (op.length >= 2 && last(op) === D && op[op.length - 2] === D) ? D : C },
+    desc: 'Сдаёт, только если соперник сдал два раза подряд, иначе молчит.',
+    size: 3, init: 0, p: s => s >= 2 ? 0 : 1, next: (s, my, op) => op === D ? Math.min(s + 1, 2) : 0 },
   { id: 'gtft', name: 'Великодушный', color: '#8bb83a', random: true,
-    desc: 'Как «Око за око», но в 30% случаев прощает предательство.',
-    play: (me, op, r) => (!op.length || last(op) === C) ? C : (r() < 0.3 ? C : D) },
+    desc: 'Как «Око за око», но после предательства соперника с вероятностью 30% всё равно молчит.',
+    size: 2, init: C, p: s => s ? 1 : 0.3, next: (s, my, op) => op },
   { id: 'pavlov', name: 'Павлов', color: '#e08a1e', random: false,
-    desc: 'Если в прошлом раунде получил много, повторяет ход, если мало, меняет.',
-    play: (me, op) => !me.length ? C : (last(me) === last(op) ? C : D) },
+    desc: 'Первым ходом молчит. Если в прошлом раунде получил T или R, повторяет свой ход, если P или S, меняет.',
+    size: 2, init: 1, p: s => s, next: (s, my, op) => my === op ? 1 : 0 },
   { id: 'stft', name: 'Подозрительный', color: '#b8527a', random: false,
-    desc: '«Око за око», но первым ходом предаёт.',
-    play: (me, op) => op.length ? last(op) : D },
+    desc: '«Око за око», но первым ходом сдаёт.',
+    size: 2, init: D, p: s => s, next: (s, my, op) => op },
+  // states 0..7: opening round t (s>>1) and whether the opponent has defected yet (s&1);
+  // 8, 9: «Око за око» with the opponent's last move; 10: always defect
   { id: 'detective', name: 'Детектив', color: '#6b7a8f', random: false,
-    desc: 'Первые ходы: молчит, сдаёт, молчит, молчит. Если соперник не мстил, эксплуатирует его, иначе играет «Око за око».',
-    play: (me, op) => {
-      const opening = [C, D, C, C];
-      if (me.length < 4) return opening[me.length];
-      return op.slice(0, 4).includes(D) ? last(op) : D;
+    desc: 'Первые четыре хода: молчит, сдаёт, молчит, молчит. Если соперник за эти ходы хоть раз сдал, дальше играет «Око за око», иначе всегда сдаёт.',
+    size: 11, init: 0,
+    p: s => s < 8 ? [C, D, C, C][s >> 1] : s < 10 ? s - 8 : 0,
+    next: (s, my, op) => {
+      if (s >= 8) return s < 10 ? 8 + op : 10;
+      const t = (s >> 1) + 1, f = (s & 1) | (op === D ? 1 : 0);
+      return t < 4 ? t * 2 + f : (f ? 8 + op : 10);
     } },
+  // state = MAJ + (number of opponent's C) − (number of opponent's D)
   { id: 'majority', name: 'Большинство', color: '#d4a90f', random: false,
-    desc: 'Молчит, если соперник за всю игру молчал не реже, чем сдавал.',
-    play: (me, op) => op.filter(m => m === C).length >= op.filter(m => m === D).length ? C : D },
+    desc: 'Молчит, если соперник за всю игру молчал не реже, чем сдавал. Первым ходом молчит.',
+    size: 2 * MAJ + 1, init: MAJ, p: s => s >= MAJ ? 1 : 0, next: (s, my, op) => s + (op === C ? 1 : -1) },
   { id: 'joss', name: 'Хитрец', color: '#9c6644', random: true,
-    desc: 'Как «Око за око», но в 10% случаев неожиданно предаёт.',
-    play: (me, op, r) => (op.length && last(op) === D) || r() < 0.1 ? D : C },
+    desc: 'Как «Око за око», но когда должен молчать, с вероятностью 10% сдаёт.',
+    size: 2, init: C, p: s => s ? 0.9 : 0, next: (s, my, op) => op },
   { id: 'random', name: 'Монетка', color: '#a3906b', random: true,
-    desc: 'Каждый раз решает подбрасыванием монеты.',
-    play: (m, o, r) => r() < 0.5 ? C : D },
+    desc: 'Каждый ход молчит или сдаёт с вероятностью 1/2.',
+    size: 1, init: 0, p: () => 0.5, next: () => 0 },
 ];
 const byId = Object.fromEntries(STRATS.map(s => [s.id, s]));
 
-function playMatch(a, b, rounds, noise, rng) {
+// One realized move: [move, flippedByNoise]
+function decide(S, s, noise, rng) {
+  const m = rng() < S.p(s) ? C : D;
+  const flip = noise > 0 && rng() < noise;
+  return [flip ? 1 - m : m, flip];
+}
+
+// One random match
+function playMatch(a, b, rounds, noise, rng = Math.random) {
   const ha = [], hb = [], fa = [], fb = [];
-  let sa = 0, sb = 0;
+  let sa = 0, sb = 0, xa = a.init, xb = b.init;
   for (let i = 0; i < rounds; i++) {
-    let ma = a.play(ha, hb, rng), mb = b.play(hb, ha, rng);
-    const xa = noise > 0 && rng() < noise, xb = noise > 0 && rng() < noise;
-    if (xa) ma = 1 - ma;
-    if (xb) mb = 1 - mb;
-    ha.push(ma); hb.push(mb); fa.push(xa); fb.push(xb);
+    const [ma, ea] = decide(a, xa, noise, rng), [mb, eb] = decide(b, xb, noise, rng);
+    xa = a.next(xa, ma, mb); xb = b.next(xb, mb, ma);
+    ha.push(ma); hb.push(mb); fa.push(ea); fb.push(eb);
     sa += payoff(ma, mb); sb += payoff(mb, ma);
   }
   return { sa, sb, ha, hb, fa, fb };
 }
 
-// M[i][j] = average per-round payoff of strategy i against strategy j
+// The automaton as lookup tables: P[s] = p(s), N[s*4 + my*2 + op] = next(s, my, op).
+// Built once per strategy straight from p() and next(), so the tables cannot disagree with them.
+function tables(S) {
+  if (!S._tab) {
+    const P = new Float64Array(S.size), N = new Int32Array(S.size * 4);
+    for (let s = 0; s < S.size; s++) {
+      P[s] = S.p(s);
+      for (let my = 0; my <= 1; my++) for (let op = 0; op <= 1; op++) {
+        // the majority counter at its edge would step outside the table; that state is unreachable in ≤ 500 rounds
+        N[s * 4 + my * 2 + op] = Math.min(S.size - 1, Math.max(0, S.next(s, my, op)));
+      }
+    }
+    S._tab = { P, N };
+  }
+  return S._tab;
+}
+
+// Exact expected average payoff per round. The joint distribution over (state of a, state of b)
+// is carried from round to round, so there is no sampling: the only error is float rounding.
+function expectedMatch(a, b, rounds, noise) {
+  const { P: PA, N: NA } = tables(a), { P: PB, N: NB } = tables(b);
+  const nB = b.size;
+  let cur = new Float64Array(a.size * nB), nxt = new Float64Array(a.size * nB);
+  cur[a.init * nB + b.init] = 1;
+  let loA = a.init, hiA = a.init, loB = b.init, hiB = b.init;
+  const QA = PA.map(p => p * (1 - noise) + (1 - p) * noise), QB = PB.map(p => p * (1 - noise) + (1 - p) * noise);
+  // payoff to a for (ma, mb) indexed ma*2 + mb, and to b for the same outcome
+  const UA = [pay.P, pay.T, pay.S, pay.R], UB = [pay.P, pay.S, pay.T, pay.R];
+  let ea = 0, eb = 0;
+  for (let t = 0; t < rounds; t++) {
+    let nLoA = Infinity, nHiA = -1, nLoB = Infinity, nHiB = -1;
+    for (let sa = loA; sa <= hiA; sa++) {
+      const qa = QA[sa], row = sa * nB;
+      for (let sb = loB; sb <= hiB; sb++) {
+        const w = cur[row + sb];
+        if (w === 0) continue;
+        cur[row + sb] = 0;
+        const qb = QB[sb];
+        for (let ma = 0; ma <= 1; ma++) {
+          const pa = ma ? qa : 1 - qa;
+          if (pa === 0) continue;
+          for (let mb = 0; mb <= 1; mb++) {
+            const pb = mb ? qb : 1 - qb;
+            if (pb === 0) continue;
+            const pr = w * pa * pb, k = ma * 2 + mb;
+            ea += pr * UA[k];
+            eb += pr * UB[k];
+            const na = NA[sa * 4 + k], nb = NB[sb * 4 + mb * 2 + ma];
+            nxt[na * nB + nb] += pr;
+            if (na < nLoA) nLoA = na;
+            if (na > nHiA) nHiA = na;
+            if (nb < nLoB) nLoB = nb;
+            if (nb > nHiB) nHiB = nb;
+          }
+        }
+      }
+    }
+    [cur, nxt] = [nxt, cur];
+    loA = nLoA; hiA = nHiA; loB = nLoB; hiB = nHiB;
+  }
+  return { ea: ea / rounds, eb: eb / rounds };
+}
+
+// Pair results are deterministic, so they are cached; ticking one more strategy only computes the new pairs
+const matchCache = new Map();
+function cachedMatch(a, b, rounds, noise) {
+  const key = [a.id, b.id, rounds, noise, pay.T, pay.R, pay.P, pay.S].join('|');
+  if (!matchCache.has(key)) matchCache.set(key, expectedMatch(a, b, rounds, noise));
+  return matchCache.get(key);
+}
+
+// M[i][j] = exact expected average payoff per round of strategy i against strategy j
 function payoffMatrix(list, rounds, noise) {
-  const stochastic = noise > 0 || list.some(s => s.random);
-  const reps = stochastic ? 12 : 1;
-  const rng = mulberry32(42);
   const n = list.length;
   const M = Array.from({ length: n }, () => Array(n).fill(0));
   for (let i = 0; i < n; i++) {
     for (let j = i; j < n; j++) {
-      let si = 0, sj = 0;
-      for (let k = 0; k < reps; k++) {
-        const r = playMatch(list[i], list[j], rounds, noise, rng);
-        si += r.sa; sj += r.sb;
-      }
-      M[i][j] = si / reps / rounds;
-      M[j][i] = sj / reps / rounds;
-      if (i === j) M[i][i] = (si + sj) / 2 / reps / rounds;
+      const { ea, eb } = cachedMatch(list[i], list[j], rounds, noise);
+      if (i === j) M[i][i] = (ea + eb) / 2;
+      else { M[i][j] = ea; M[j][i] = eb; }
     }
   }
   return M;
@@ -478,11 +560,22 @@ function makeChart(key, canvasId, config) {
   charts[key] = new Chart(document.getElementById(canvasId), config);
 }
 const fmt = (x, d = 2) => x.toFixed(d).replace('.', ',');
+const EPS = 1e-9; // values closer than this are treated as equal (float rounding is ~1e-12)
 
 /* ---------- 1. Rules / matrix ---------- */
+// Pure-strategy Nash equilibria of the one-shot game: neither player gains by switching alone
+const CELLS = { cc: [C, C], cd: [C, D], dc: [D, C], dd: [D, D] };
+function nashCells() {
+  return Object.keys(CELLS).filter(k => {
+    const [a, b] = CELLS[k];
+    return payoff(a, b) >= payoff(1 - a, b) && payoff(b, a) >= payoff(1 - b, a);
+  });
+}
+
 function matrixHTML(hit) {
+  const nash = nashCells();
   const cell = (cls, me, op, a, b) => `
-    <div class="cell ${cls}${hit === cls ? ' hit' : ''}${cls === 'dd' ? ' nash' : ''}">
+    <div class="cell ${cls}${hit === cls ? ' hit' : ''}${nash.includes(cls) ? ' nash' : ''}">
       <div class="pair"><span><b style="color:var(--accent)">${me}</b><span class="who">вы</span></span>
       <span><b>${op}</b><span class="who">соперник</span></span></div>
     </div>`;
@@ -501,11 +594,20 @@ function matrixHTML(hit) {
 function renderRules() {
   document.getElementById('matrix').innerHTML = matrixHTML(null);
   const { T, R, P, S } = pay;
-  document.getElementById('why').innerHTML =
-    `Если соперник молчит, вам выгоднее сдать его (${T} очков вместо ${R}). ` +
-    `Если соперник сдаёт, вам тоже выгоднее сдать (${P} вместо ${S}). ` +
-    `Значит, при любом ходе соперника предательство лучше. Так рассуждают оба и получают по <b>${P}</b>, ` +
-    `хотя молча могли бы получить по <b>${R}</b>. Клетка в красной рамке — равновесие Нэша: никому не выгодно менять ход в одиночку.`;
+  const cmp = (dv, cv, dLabel, cLabel) => dv > cv ? `выгоднее ${dLabel} (${dv} против ${cv})`
+    : dv < cv ? `выгоднее ${cLabel} (${cv} против ${dv})` : `всё равно (${dv} = ${cv})`;
+  let why = `Если соперник молчит, вам ${cmp(T, R, 'сдать', 'молчать')}. ` +
+    `Если соперник сдаёт, вам ${cmp(P, S, 'сдать', 'молчать')}. `;
+  if (T > R && P > S) {
+    why += `Значит, при любом ходе соперника предательство строго лучше: это строго доминирующая стратегия. Так рассуждают оба и получают по <b>${P}</b>`;
+    why += R > P ? `, хотя при взаимном молчании получили бы по <b>${R}</b>. ` : '. ';
+  }
+  const NASH_NAMES = { cc: 'оба молчат', cd: 'вы молчите, соперник сдаёт', dc: 'вы сдаёте, соперник молчит', dd: 'оба сдают' };
+  const nash = nashCells();
+  why += nash.length
+    ? `Равновесие Нэша в чистых стратегиях (клетки в красной рамке): ${nash.map(k => NASH_NAMES[k]).join('; ')}. В равновесии ни одному игроку не выгодно менять ход в одиночку.`
+    : 'Равновесий Нэша в чистых стратегиях нет.';
+  document.getElementById('why').innerHTML = why;
   const v = document.getElementById('validity');
   const problems = [];
   if (!(T > R && R > P && P > S)) problems.push('нужно T > R > P > S');
@@ -521,7 +623,7 @@ function renderRules() {
 
 /* ---------- 2. Play ---------- */
 const ROUNDS = 10;
-const game = { opp: null, me: [], op: [], my: 0, their: 0, mystery: false, rng: Math.random };
+const game = { opp: null, state: 0, me: [], op: [], my: 0, their: 0, mystery: false };
 
 function setupPlaySelect() {
   const sel = document.getElementById('oppSelect');
@@ -534,6 +636,7 @@ function newGame() {
   const v = document.getElementById('oppSelect').value;
   game.mystery = v === 'mystery';
   game.opp = game.mystery ? STRATS[Math.floor(Math.random() * STRATS.length)] : byId[v];
+  game.state = game.opp.init;
   game.me = []; game.op = []; game.my = 0; game.their = 0;
   document.getElementById('oppLabel').textContent = game.mystery ? 'Соперник' : game.opp.name;
   document.getElementById('playVerdict').hidden = true;
@@ -542,7 +645,8 @@ function newGame() {
 
 function move(m) {
   if (game.me.length >= ROUNDS) return;
-  const o = game.opp.play(game.op, game.me, game.rng);
+  const [o] = decide(game.opp, game.state, 0, Math.random);
+  game.state = game.opp.next(game.state, o, m);
   game.me.push(m); game.op.push(o);
   game.my += payoff(m, o); game.their += payoff(o, m);
   renderPlay((m ? 'c' : 'd') + (o ? 'c' : 'd'));
@@ -596,7 +700,7 @@ function drawPlayChart() {
 function finishGame() {
   const coopAll = ROUNDS * pay.R;
   const coopRate = Math.round(100 * game.me.filter(m => m === C).length / ROUNDS);
-  let msg = `<b>Партия окончена.</b> ${game.mystery ? `Вашим соперником был <b>${game.opp.name}</b>: ${game.opp.desc.toLowerCase()} ` : ''}`;
+  let msg = `<b>Партия окончена.</b> ${game.mystery ? `Вашим соперником был <b>${game.opp.name}</b>. ${game.opp.desc} ` : ''}`;
   msg += `Вы сотрудничали в ${coopRate}% раундов и набрали ${game.my} очков. `;
   msg += `Если бы оба всё время молчали, каждый получил бы ${coopAll}. `;
   msg += game.my > game.their ? 'Вы обыграли соперника, но в этой игре важнее собственный счёт, а не победа над другим.'
@@ -626,13 +730,13 @@ function runDuel() {
   const B = byId[document.getElementById('duelB').value];
   const rounds = +document.getElementById('duelRounds').value;
   const noise = +document.getElementById('duelNoise').value / 100;
-  const r = playMatch(A, B, rounds, noise, mulberry32(Date.now()));
-  lastDuel = { A, B, rounds, noise, ...r };
+  const r = playMatch(A, B, rounds, noise);
+  lastDuel = { A, B, rounds, noise, exp: expectedMatch(A, B, rounds, noise), ...r };
   drawDuel();
 }
 
 function drawDuel() {
-  const { A, B, rounds, noise, sa, sb, ha, hb, fa, fb } = lastDuel;
+  const { A, B, rounds, noise, exp, sa, sb, ha, hb, fa, fb } = lastDuel;
   const nameB = A === B ? B.name + ' (копия)' : B.name;
   document.getElementById('duelNameA').innerHTML = `<i class="dot" style="background:${A.color}"></i>${A.name}`;
   document.getElementById('duelNameB').innerHTML = `<i class="dot" style="background:${B.color}"></i>${nameB}`;
@@ -672,7 +776,13 @@ function drawDuel() {
   text += sa === sb ? '<b>Ничья.</b> ' : `<b>Больше набрал ${sa > sb ? A.name : nameB}</b> (${Math.max(sa, sb)} против ${Math.min(sa, sb)}). `;
   text += `Вместе: ${sa + sb} из ${2 * pay.R * rounds} очков, которые дало бы полное сотрудничество.`;
   const errors = fa.filter(Boolean).length + fb.filter(Boolean).length;
-  if (errors) text += ` Ошибок из-за шума: ${errors}. Посмотрите на ходы после рамок: одни стратегии быстро мирятся, другие мстят до конца.`;
+  if (noise > 0) text += ` Ходов, изменённых шумом: ${errors} из ${2 * rounds}, они обведены рамкой.`;
+  if (noise > 0 || A.random || B.random) {
+    text += `<br><br>Это одна случайная реализация, при следующем запуске результат будет другим. ` +
+      `<b>Точное математическое ожидание</b> счёта за ${rounds} раундов: ${A.name} ${fmt(exp.ea * rounds, 3)}, ${nameB} ${fmt(exp.eb * rounds, 3)}.`;
+  } else {
+    text += `<br><br>Без шума и случайных стратегий матч детерминирован: при каждом запуске результат один и тот же.`;
+  }
   document.getElementById('duelVerdict').innerHTML = text;
 }
 
@@ -702,17 +812,28 @@ function runGroup() {
   document.getElementById('tourEmpty').hidden = !empty;
   document.getElementById('tourResults').hidden = empty;
   if (empty) {
+    groupJob++; // cancel a pending computation for the previous selection
     lastTour = null;
     document.getElementById('tourEmptyText').textContent = n === 1
       ? `Стратегии «${list[0].name}» не с кем соревноваться. Отметьте ещё одну.`
       : 'Отметьте стратегии выше или нажмите «Выбрать все».';
     return;
   }
-  const { rounds, noise } = settings();
-  lastTour = { list, noise, M: payoffMatrix(list, rounds, noise) };
-  drawTournament();
-  drawEvolution();
+  // Long noisy matches can take a moment; dim the old results and compute after the browser repaints.
+  // A newer request supersedes an older one that has not started yet.
+  const job = ++groupJob;
+  const res = document.getElementById('tourResults');
+  res.classList.add('busy');
+  setTimeout(() => {
+    if (job !== groupJob) return;
+    const { rounds, noise } = settings();
+    lastTour = { list, noise, M: payoffMatrix(list, rounds, noise) };
+    drawTournament();
+    drawEvolution();
+    res.classList.remove('busy');
+  }, 30);
 }
+let groupJob = 0;
 
 function drawTournament() {
   const { list, M, noise } = lastTour;
@@ -736,40 +857,40 @@ function drawTournament() {
       },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: c => ` ${fmt(c.raw)} очка за раунд` } },
+        tooltip: { callbacks: { label: c => ` ${fmt(c.raw, 3)} очка за раунд` } },
       },
     },
   });
 
-  lastTour.winner = order[0];
+  // Every sentence below is a fact read off the numbers; ties are exact (up to float rounding)
+  const rank = i => 1 + avg.filter(v => v > avg[i] + EPS).length;
   const top = avg[order[0]], bottom = avg[order[order.length - 1]];
-  const lose = list[order[order.length - 1]];
-  // Every sentence below is checked against the numbers, so the text never contradicts the chart
-  const tied = order.filter(i => top - avg[i] < 0.02);
-  let text = tied.length > 1
-    ? `<b>Первые места почти поровну:</b> ${tied.map(i => `${list[i].name} (${fmt(avg[i])})`).join(', ')}. Разница меньше 0,02 очка за раунд, так что порядок между ними во многом случаен. `
-    : `<b>Победитель: ${list[order[0]].name}</b> (${fmt(top)} очка за раунд). `;
-  text += `Последнее место: ${lose.name} (${fmt(bottom)}). `;
+  const first = order.filter(i => rank(i) === 1);
+  const lastPlace = order.filter(i => bottom - avg[i] > -EPS);
+  lastTour.first = first;
+  const names = idx => idx.map(i => list[i].name).join(', ');
+  let text = first.length > 1
+    ? `<b>Первое место делят:</b> ${names(first)} (${fmt(top, 3)} очка за раунд). `
+    : `<b>Первое место: ${list[first[0]].name}</b> (${fmt(top, 3)} очка за раунд). `;
+  text += `Последнее место: ${names(lastPlace)} (${fmt(bottom, 3)}). `;
 
-  const meanAvg = avg.reduce((a, b) => a + b, 0) / avg.length;
   const iD = list.findIndex(s => s.id === 'alld');
-  if (iD >= 0 && avg[iD] < meanAvg - 0.1) {
-    const beats = list.filter((s, j) => j !== iD && M[iD][j] > M[j][iD]).length;
-    const others = list.length - 1;
-    const record = beats === others ? 'выигрывает каждую свою встречу' : `выигрывает ${beats} встреч из ${others}, остальные вничью`;
-    text += `Эгоист ни разу не проигрывает один на один (${record}), но в сумме набирает мало: с ним никто не сотрудничает. `;
+  if (iD >= 0) {
+    let w = 0, t = 0, l = 0;
+    list.forEach((s, j) => {
+      if (j === iD) return;
+      const d = M[iD][j] - M[j][iD];
+      if (d > EPS) w++; else if (d < -EPS) l++; else t++;
+    });
+    text += `Эгоист в матчах один на один набирает больше соперника в ${w}, столько же в ${t} и меньше в ${l} из ${list.length - 1}, а в общем зачёте занимает ${rank(iD)}-е место из ${list.length}. `;
   }
 
   if (noise > 0) {
-    const p = Math.round(noise * 100);
+    text += `При шуме ${Math.round(noise * 100)}% средние выигрыши лежат в диапазоне от ${fmt(bottom, 3)} до ${fmt(top, 3)}. `;
     const forgiving = ['gtft', 'pavlov', 'tf2t'].map(id => list.findIndex(s => s.id === id)).filter(i => i >= 0);
-    const bestRank = forgiving.length ? Math.min(...forgiving.map(i => order.indexOf(i))) : -1;
-    if (top - bottom < 0.3) {
-      text += `При шуме ${p}% ходы становятся во многом случайными, и разница между стратегиями почти стирается: все набрали от ${fmt(bottom)} до ${fmt(top)}. Чтобы увидеть влияние ошибок, попробуйте шум 1–5%.`;
-    } else if (bestRank >= 0 && bestRank < 3) {
-      text += `Шум ${p}%: случайные ошибки запускают цепочки взаимной мести, и выигрывают те, кто умеет прощать. ${list[order[bestRank]].name} на ${bestRank + 1}-м месте.`;
-    } else {
-      text += `Шум ${p}%: случайные ошибки запускают цепочки взаимной мести.`;
+    if (forgiving.length) {
+      const best = forgiving.reduce((a, b) => avg[b] > avg[a] ? b : a);
+      text += `Лучшая из прощающих стратегий (Великодушный, Павлов, Око за два ока) здесь ${list[best].name}, ${rank(best)}-е место.`;
     }
   }
   verdict.innerHTML = text;
@@ -779,12 +900,20 @@ function drawTournament() {
 function drawEvolution() {
   const { list, M } = lastTour;
   const verdict = document.getElementById('evoVerdict');
+  const box = document.getElementById('evoBox');
+  // x_i' = x_i f_i / f̄ is only a valid share update when all fitnesses are non-negative
+  if (Math.min(pay.T, pay.R, pay.P, pay.S) < 0) {
+    box.hidden = true;
+    verdict.innerHTML = 'Репликаторная динамика определена только для неотрицательных выигрышей. Сделайте T, R, P, S не меньше нуля.';
+    return;
+  }
+  box.hidden = false;
   const gens = +document.getElementById('gens').value;
   const n = list.length;
   let x = Array(n).fill(1 / n);
   const series = list.map(() => []);
   for (let g = 0; g <= gens; g++) {
-    x.forEach((v, i) => series[i].push(+(v * 100).toFixed(2)));
+    x.forEach((v, i) => series[i].push(v * 100));
     const fit = x.map((_, i) => M[i].reduce((s, m, j) => s + m * x[j], 0));
     const mean = fit.reduce((s, f, i) => s + f * x[i], 0);
     if (mean <= 0) continue;
@@ -810,32 +939,44 @@ function drawEvolution() {
       plugins: {
         // Stacked areas draw dataset 0 at the bottom; list top-to-bottom to match the picture
         legend: { position: 'bottom', reverse: true, labels: { usePointStyle: true, boxWidth: 8 } },
-        tooltip: { itemSort: (a, b) => b.datasetIndex - a.datasetIndex, callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw, 1)}%` } },
+        tooltip: { itemSort: (a, b) => b.datasetIndex - a.datasetIndex, callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw, 2)}%` } },
       },
     },
   });
 
-  const final = x.map((v, i) => ({ s: list[i], v })).sort((a, b) => b.v - a.v);
-  const alive = final.filter(f => f.v > 0.01);
-  const dead = final.filter(f => f.v < 0.001).map(f => f.s.name);
-  let text = `<b>Через ${gens} поколений:</b> ` + alive.map(f => `${f.s.name} ${fmt(f.v * 100, 1)}%`).join(', ') + '. ';
-  if (dead.length) text += `Почти вымерли: ${dead.join(', ')}. `;
+  // Shares below 0.01% are shown as a·10ⁿ % rather than rounded to 0,00%
+  const SUP = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+  const pct = v => {
+    const p = v * 100;
+    if (p >= 0.01 || p === 0) return fmt(p, 2) + '%';
+    const [m, e] = p.toExponential(1).split('e');
+    return `${m.replace('.', ',')}·10${String(+e).split('').map(c => SUP[c]).join('')}%`;
+  };
+  const final = x.map((v, i) => ({ i, v })).sort((a, b) => b.v - a.v);
+  const shown = final.filter(f => f.v >= 0.001), tiny = final.filter(f => f.v < 0.001);
+  let text = `<b>Поколение ${gens}:</b> ` + shown.map(f => `${list[f.i].name} ${pct(f.v)}`).join(', ') + '. ';
+  if (tiny.length) text += `Доля ниже 0,1%: ${tiny.map(f => list[f.i].name).join(', ')}. `;
+
   const iD = list.findIndex(s => s.id === 'alld');
   if (iD >= 0) {
-    const peak = Math.max(...series[iD]);
-    if (peak > 100 / n + 0.5) text += `Эгоист сначала растёт (до ${fmt(peak, 1)}%), пока вокруг много наивных жертв, а потом вымирает вместе с ними.`;
+    const peakGen = series[iD].indexOf(Math.max(...series[iD]));
+    if (peakGen > 0) text += `Доля Эгоиста растёт до ${fmt(series[iD][peakGen], 2)}% (поколение ${peakGen}), затем падает до ${pct(x[iD])}. `;
   }
 
-  // Explain when the tournament winner is not the evolution winner
-  const tw = lastTour.winner, ew = list.indexOf(final[0].s);
-  if (tw !== ew) {
-    const twName = list[tw].name, ewName = list[ew].name, twShare = x[tw] * 100;
-    if (M[ew][ew] - M[tw][tw] > 0.2) {
-      text += `<br><br><b>Почему не ${twName}, если в турнире эта стратегия первая?</b> В турнире каждый встречает всех соперников поровну. В эволюции чаще всего встречаешь тех, кто размножился, в том числе свои копии. ${twName} против самого себя набирает ${fmt(M[tw][tw])} очка за раунд, а ${ewName} против себя ${fmt(M[ew][ew])}. ` +
-        (twShare < 0.1 ? `Поэтому ${twName} вымирает.` : `Поэтому в итоге у этой стратегии только ${fmt(twShare, 1)}%.`);
-    } else if (twShare > 1) {
-      text += `<br><br><b>Почему ${twName} не на первом месте?</b> Когда агрессивные стратегии вымирают, оставшиеся сотрудничают друг с другом и набирают поровну, поэтому их доли застывают. Итог решился в первых поколениях: у кого лучше получалось с агрессивными, тот и сохранил долю побольше.`;
-    }
+  // Fitness at the final generation: if all strategies still present have equal fitness, shares stop moving
+  const fit = x.map((_, i) => M[i].reduce((s, m, j) => s + m * x[j], 0));
+  const fs = shown.map(f => fit[f.i]);
+  if (shown.length > 1 && Math.max(...fs) - Math.min(...fs) < 1e-6) {
+    text += `В поколении ${gens} у всех стратегий с долей от 0,1% одинаковый средний выигрыш f = ${fmt(fs[0], 3)} (с точностью 10⁻⁶), поэтому их доли почти не меняются. `;
+  }
+
+  // State the difference between the two rankings as numbers, without guessing at causes
+  const ew = final[0].i;
+  if (!lastTour.first.includes(ew)) {
+    const tw = lastTour.first[0];
+    text += `<br><br><b>Первые места в турнире и в эволюции разные:</b> ${list[tw].name} и ${list[ew].name}. ` +
+      `В турнире каждый соперник входит в оценку с весом 1/${n}, а в эволюции с весом, равным его текущей доле, в том числе копия самой стратегии. ` +
+      `Выигрыш против своей копии: ${list[tw].name} ${fmt(M[tw][tw], 3)}, ${list[ew].name} ${fmt(M[ew][ew], 3)} очка за раунд.`;
   }
   verdict.innerHTML = text;
 }
