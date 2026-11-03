@@ -171,15 +171,18 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
 .chart-box { position: relative; height: 340px; }
 .chart-box.short { height: 240px; }
 
-/* Heatmap */
-.heat-wrap { overflow-x: auto; margin-top: 18px; }
-table.heat { border-collapse: separate; border-spacing: 3px; font-size: 13px; min-width: 100%; }
-table.heat th { font-weight: 600; color: var(--muted); padding: 4px 6px; white-space: nowrap; }
-table.heat thead th { writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; height: 120px; vertical-align: bottom; }
-table.heat tbody th { text-align: right; }
-table.heat td { text-align: center; padding: 7px 4px; border-radius: 6px; min-width: 42px; font-variant-numeric: tabular-nums; }
-.legend-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 8px; }
-.legend-bar i { display: block; width: 140px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, hsl(5 70% 52%), hsl(45 80% 52%), hsl(140 55% 42%)); }
+/* Duel: one column per round, top square = A, bottom = B */
+.duel-pick { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin: 14px 0 18px; }
+.duel-pick .vs { font-family: var(--f-head); color: var(--muted); font-size: 14px; }
+@media (max-width: 520px) { .duel-pick { grid-template-columns: 1fr; } .duel-pick .vs { text-align: center; } }
+.score .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.duel-strip { display: flex; flex-wrap: wrap; gap: 3px; margin: 8px 0 6px; }
+.duel-col { display: flex; flex-direction: column; gap: 2px; }
+.duel-col i { display: block; width: 11px; height: 11px; border-radius: 3px; background: var(--coop); }
+.duel-col i.d { background: var(--defect); }
+.duel-col i.f { outline: 2px solid var(--warn); outline-offset: 1px; }
+.strip-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.strip-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
 
 .verdict { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: var(--bg); }
 .lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 10px; }
@@ -193,7 +196,7 @@ footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 2
   <header>
     <div class="kicker">Теория игр · симулятор</div>
     <h1>Дилемма заключённого</h1>
-    <p class="lead">Двух подельников допрашивают в разных комнатах. Каждый может <b style="color:var(--coop)">молчать</b> (сотрудничать с напарником) или <b style="color:var(--defect)">сдать</b> его (предать). Каждому выгодно предать, но если предадут оба, обоим будет хуже, чем если бы оба промолчали. Здесь можно сыграть самому, устроить турнир стратегий и посмотреть, кто выживет в эволюции.</p>
+    <p class="lead">Двух подельников допрашивают в разных комнатах. Каждый может <b style="color:var(--coop)">молчать</b> (сотрудничать с напарником) или <b style="color:var(--defect)">сдать</b> его (предать). Каждому выгодно предать, но если предадут оба, обоим будет хуже, чем если бы оба промолчали. Здесь можно сыграть самому, столкнуть две стратегии лицом к лицу, устроить турнир и посмотреть, кто выживет в эволюции.</p>
   </header>
 
   <!-- 1. Rules -->
@@ -251,9 +254,48 @@ footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 2
     </div>
   </section>
 
-  <!-- 3. Tournament -->
+  <!-- 3. Duel -->
+  <section class="card" id="duel">
+    <div class="sec-head"><span class="num">03</span><h2>Дуэль стратегий</h2></div>
+    <p>Выберите две стратегии и посмотрите, как они играют друг против друга ход за ходом.</p>
+    <div class="duel-pick">
+      <select id="duelA"></select>
+      <span class="vs">против</span>
+      <select id="duelB"></select>
+    </div>
+    <div class="controls">
+      <label>Раундов: <output id="duelRoundsOut">30</output>
+        <input type="range" id="duelRounds" min="5" max="100" step="1" value="30"></label>
+      <label>Шум: <output id="duelNoiseOut">0%</output>
+        <input type="range" id="duelNoise" min="0" max="20" step="1" value="0"></label>
+      <button class="primary" id="runDuel">Сыграть ещё раз</button>
+    </div>
+    <div class="cols">
+      <div>
+        <div class="scoreboard" style="margin-top:0">
+          <div class="score"><span class="muted small" id="duelNameA"></span><b id="duelScoreA">0</b></div>
+          <div class="score"><span class="muted small" id="duelNameB"></span><b id="duelScoreB">0</b></div>
+        </div>
+        <h3>Ходы по раундам</h3>
+        <div class="duel-strip" id="duelStrip"></div>
+        <div class="strip-legend">
+          <span>верхний квадрат: <b id="duelLegA"></b>, нижний: <b id="duelLegB"></b></span>
+          <span><i style="background:var(--coop)"></i>молчит</span>
+          <span><i style="background:var(--defect)"></i>сдаёт</span>
+          <span><i style="outline:2px solid var(--warn);outline-offset:1px"></i>ошибка из-за шума</span>
+        </div>
+        <div class="verdict" id="duelVerdict"></div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:8px">Счёт по ходу матча</h3>
+        <div class="chart-box short"><canvas id="duelChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Tournament -->
   <section class="card" id="tournament">
-    <div class="sec-head"><span class="num">03</span><h2>Турнир стратегий</h2></div>
+    <div class="sec-head"><span class="num">04</span><h2>Турнир стратегий</h2></div>
     <p>Как в знаменитом турнире Роберта Аксельрода (1980): каждая стратегия играет с каждой, включая копию самой себя. Побеждает та, у которой больше средний выигрыш за раунд.</p>
     <div class="strats" id="stratList"></div>
     <div class="controls">
@@ -265,16 +307,12 @@ footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 2
     </div>
     <h3 style="margin-bottom:8px">Средний выигрыш за раунд</h3>
     <div class="chart-box"><canvas id="tourChart"></canvas></div>
-    <h3 style="margin-top:22px">Кто сколько получает против кого</h3>
-    <p class="small muted">Строка: стратегия, столбец: её соперник. В клетке средний выигрыш строки за раунд.</p>
-    <div class="heat-wrap"><table class="heat" id="heat"></table></div>
-    <div class="legend-bar"><span id="legLo">0</span><i></i><span id="legHi">5</span></div>
     <div class="verdict" id="tourVerdict"></div>
   </section>
 
-  <!-- 4. Evolution -->
+  <!-- 5. Evolution -->
   <section class="card" id="evolution">
-    <div class="sec-head"><span class="num">04</span><h2>Эволюция</h2></div>
+    <div class="sec-head"><span class="num">05</span><h2>Эволюция</h2></div>
     <p>Теперь представим популяцию, где стратегии встречаются случайно. Те, кто набирает больше очков, чем в среднем, размножаются, остальные вымирают. Используются стратегии и настройки турнира выше. Начальная доля у всех одинаковая.</p>
     <div class="controls">
       <label>Поколений: <output id="gensOut">150</output>
@@ -289,7 +327,7 @@ footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 2
 
   <!-- 5. Lessons -->
   <section class="card" id="lessons">
-    <div class="sec-head"><span class="num">05</span><h2>Что из этого следует</h2></div>
+    <div class="sec-head"><span class="num">06</span><h2>Что из этого следует</h2></div>
     <p>Аксельрод выяснил, что у успешных стратегий в повторяющейся игре есть четыре общих черты:</p>
     <div class="lessons">
       <div class="lesson"><h3>Доброта</h3><p class="small">Никогда не предавать первым. Почти все лидеры турнира начинают с сотрудничества.</p></div>
@@ -366,16 +404,17 @@ const STRATS = [
 const byId = Object.fromEntries(STRATS.map(s => [s.id, s]));
 
 function playMatch(a, b, rounds, noise, rng) {
-  const ha = [], hb = [];
+  const ha = [], hb = [], fa = [], fb = [];
   let sa = 0, sb = 0;
   for (let i = 0; i < rounds; i++) {
     let ma = a.play(ha, hb, rng), mb = b.play(hb, ha, rng);
-    if (noise && rng() < noise) ma = 1 - ma;
-    if (noise && rng() < noise) mb = 1 - mb;
-    ha.push(ma); hb.push(mb);
+    const xa = noise > 0 && rng() < noise, xb = noise > 0 && rng() < noise;
+    if (xa) ma = 1 - ma;
+    if (xb) mb = 1 - mb;
+    ha.push(ma); hb.push(mb); fa.push(xa); fb.push(xb);
     sa += payoff(ma, mb); sb += payoff(mb, ma);
   }
-  return { sa, sb };
+  return { sa, sb, ha, hb, fa, fb };
 }
 
 // M[i][j] = average per-round payoff of strategy i against strategy j
@@ -544,7 +583,75 @@ function finishGame() {
   drawPlayChart();
 }
 
-/* ---------- 3. Tournament ---------- */
+/* ---------- 3. Duel ---------- */
+let lastDuel = null;
+function setupDuel() {
+  const opts = STRATS.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  const a = document.getElementById('duelA'), b = document.getElementById('duelB');
+  a.innerHTML = opts; b.innerHTML = opts;
+  a.value = 'tft'; b.value = 'detective';
+  a.onchange = b.onchange = runDuel;
+  document.getElementById('duelRounds').addEventListener('input', runDuel);
+  document.getElementById('duelNoise').addEventListener('input', runDuel);
+  document.getElementById('runDuel').onclick = runDuel;
+}
+
+function runDuel() {
+  const A = byId[document.getElementById('duelA').value];
+  const B = byId[document.getElementById('duelB').value];
+  const rounds = +document.getElementById('duelRounds').value;
+  const noise = +document.getElementById('duelNoise').value / 100;
+  const r = playMatch(A, B, rounds, noise, mulberry32(Date.now()));
+  lastDuel = { A, B, rounds, noise, ...r };
+  drawDuel();
+}
+
+function drawDuel() {
+  const { A, B, rounds, noise, sa, sb, ha, hb, fa, fb } = lastDuel;
+  const nameB = A === B ? B.name + ' (копия)' : B.name;
+  document.getElementById('duelNameA').innerHTML = `<i class="dot" style="background:${A.color}"></i>${A.name}`;
+  document.getElementById('duelNameB').innerHTML = `<i class="dot" style="background:${B.color}"></i>${nameB}`;
+  document.getElementById('duelScoreA').textContent = sa;
+  document.getElementById('duelScoreB').textContent = sb;
+  document.getElementById('duelLegA').textContent = A.name;
+  document.getElementById('duelLegB').textContent = nameB;
+  document.getElementById('duelStrip').innerHTML = ha.map((m, i) => {
+    const sq = (mv, flip) => `<i class="${mv ? '' : 'd'}${flip ? ' f' : ''}"></i>`;
+    return `<div class="duel-col" title="Раунд ${i + 1}">${sq(m, fa[i])}${sq(hb[i], fb[i])}</div>`;
+  }).join('');
+
+  const cum = (x, y) => { let s = 0; return [0, ...x.map((m, i) => (s += payoff(m, y[i])))]; };
+  makeChart('duel', 'duelChart', {
+    type: 'line',
+    data: {
+      labels: Array.from({ length: rounds + 1 }, (_, i) => i),
+      datasets: [
+        { label: A.name, data: cum(ha, hb), borderColor: A.color, backgroundColor: A.color, borderWidth: 2.5, pointRadius: 0, tension: .2 },
+        { label: nameB, data: cum(hb, ha), borderColor: B.color, backgroundColor: B.color, borderWidth: 2.5, pointRadius: 0, tension: .2, borderDash: [6, 4] },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 250 },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { title: { display: true, text: 'раунд' }, ticks: { maxTicksLimit: 11 }, grid: { display: false } },
+        y: { beginAtZero: true, title: { display: true, text: 'очки' } },
+      },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
+    },
+  });
+
+  const pct = h => Math.round(100 * h.filter(m => m === C).length / h.length);
+  const both = ha.filter((m, i) => m === C && hb[i] === C).length;
+  let text = `Доля молчания: ${A.name} ${pct(ha)}%, ${nameB} ${pct(hb)}%. Оба молчали в ${both} из ${rounds} раундов. `;
+  text += sa === sb ? '<b>Ничья.</b> ' : `<b>Больше набрал ${sa > sb ? A.name : nameB}</b> (${Math.max(sa, sb)} против ${Math.min(sa, sb)}). `;
+  text += `Вместе: ${sa + sb} из ${2 * pay.R * rounds} очков, которые дало бы полное сотрудничество.`;
+  const errors = fa.filter(Boolean).length + fb.filter(Boolean).length;
+  if (errors) text += ` Ошибок из-за шума: ${errors}. Посмотрите на ходы после рамок: одни стратегии быстро мирятся, другие мстят до конца.`;
+  document.getElementById('duelVerdict').innerHTML = text;
+}
+
+/* ---------- 4. Tournament ---------- */
 const DEFAULT_ON = ['tft', 'allc', 'alld', 'grim', 'tf2t', 'pavlov', 'stft', 'detective', 'random'];
 function setupStratList() {
   document.getElementById('stratList').innerHTML = STRATS.map(s => `
@@ -559,12 +666,6 @@ const settings = () => ({
   rounds: +document.getElementById('rounds').value,
   noise: +document.getElementById('noise').value / 100,
 });
-
-function heatColor(v) {
-  const t = Math.max(0, Math.min(1, (v - pay.S) / ((pay.T - pay.S) || 1)));
-  const hue = t < .5 ? 5 + t * 80 : 45 + (t - .5) * 190;
-  return `hsl(${hue} 65% 48% / ${0.22 + 0.5 * Math.abs(t - .5)})`;
-}
 
 let lastTour = null;
 function runTournament() {
@@ -596,14 +697,6 @@ function runTournament() {
     },
   });
 
-  const heat = document.getElementById('heat');
-  heat.innerHTML = '<thead><tr><th></th>' + order.map(j => `<th>${list[j].name}</th>`).join('') + '</tr></thead><tbody>' +
-    order.map(i => `<tr><th>${list[i].name}</th>` +
-      order.map(j => `<td style="background:${heatColor(M[i][j])}" title="${list[i].name} против ${list[j].name}">${fmt(M[i][j], 1)}</td>`).join('') +
-    '</tr>').join('') + '</tbody>';
-  document.getElementById('legLo').textContent = pay.S;
-  document.getElementById('legHi').textContent = pay.T;
-
   const win = list[order[0]], lose = list[order[order.length - 1]];
   let text = `<b>Победитель: ${win.name}</b> (${fmt(avg[order[0]])} очка за раунд), последнее место: ${lose.name} (${fmt(avg[order[order.length - 1]])}). `;
   const iD = list.findIndex(s => s.id === 'alld');
@@ -615,7 +708,7 @@ function runTournament() {
   verdict.innerHTML = text;
 }
 
-/* ---------- 4. Evolution (discrete replicator dynamics) ---------- */
+/* ---------- 5. Evolution (discrete replicator dynamics) ---------- */
 function runEvolution() {
   const list = selected();
   const verdict = document.getElementById('evoVerdict');
@@ -678,6 +771,7 @@ function readPayoffs() {
   }
   renderRules();
   newGame();
+  runDuel();
   runTournament();
   runEvolution();
 }
@@ -690,6 +784,8 @@ const bindOut = (id, out, f) => {
 };
 bindOut('rounds', 'roundsOut', v => v);
 bindOut('noise', 'noiseOut', v => v + '%');
+bindOut('duelRounds', 'duelRoundsOut', v => v);
+bindOut('duelNoise', 'duelNoiseOut', v => v + '%');
 bindOut('gens', 'gensOut', v => v);
 
 document.getElementById('btnC').onclick = () => move(C);
@@ -701,14 +797,17 @@ document.getElementById('runEvo').onclick = runEvolution;
 // Redraw charts when the OS theme flips so axis colors follow
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   drawPlayChart();
+  if (lastDuel) drawDuel();
   if (lastTour) runTournament();
   runEvolution();
 });
 
 setupPlaySelect();
 setupStratList();
+setupDuel();
 renderRules();
 newGame();
+runDuel();
 runTournament();
 runEvolution();
 </script>
