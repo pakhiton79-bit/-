@@ -98,7 +98,9 @@ section.card {
 }
 
 /* Payoff matrix */
-.matrix { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; font-size: 14px; }
+/* grid children may shrink below their content width; otherwise the matrix pushes the page wider than a phone */
+.cols > * { min-width: 0; }
+.matrix { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); gap: 6px; font-size: 14px; }
 .matrix .h { color: var(--muted); font-weight: 600; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px; }
 .matrix .cell {
   border-radius: 12px; padding: 12px 8px; text-align: center; border: 2px solid transparent;
@@ -154,15 +156,15 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
 .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
 .score { background: var(--bg); border-radius: 12px; padding: 12px 14px; }
 .score b { font-family: var(--f-head); font-size: 28px; display: block; }
-.history { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; min-height: 58px; }
+/* ten equal columns, so all 10 rounds stay on one line at any width */
+.history { display: grid; grid-template-columns: repeat(10, minmax(0, 26px)); gap: 6px; margin: 10px 0 4px; min-height: 44px; }
 .rnd { display: flex; flex-direction: column; gap: 3px; align-items: center; font-size: 11px; color: var(--muted); }
-.chip { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; }
+.chip { width: 100%; aspect-ratio: 1; border-radius: 7px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; }
 .chip.c { background: var(--coop); }
 .chip.d { background: var(--defect); }
 .chip.empty { background: var(--line); }
 @media (max-width: 420px) {
   .history { gap: 4px; }
-  .chip { width: 24px; height: 24px; }
 }
 .reveal { margin-top: 14px; }
 
@@ -181,11 +183,11 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
 .controls output { color: var(--ink); font-weight: 600; }
 .controls.three { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 760px) { .controls, .controls.three { grid-template-columns: 1fr; } }
-.empty {
+.tour-empty {
   display: flex; flex-direction: column; gap: 4px; align-items: center; text-align: center;
   padding: 44px 16px; border: 2px dashed var(--line); border-radius: 14px; color: var(--muted);
 }
-.empty b { color: var(--ink); font-family: var(--f-head); font-weight: 500; }
+.tour-empty b { color: var(--ink); font-family: var(--f-head); font-weight: 500; }
 
 .chart-box { position: relative; height: 340px; }
 .chart-box.short { height: 240px; }
@@ -213,6 +215,21 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
 .lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 10px; }
 .lesson { background: var(--bg); border-radius: 14px; padding: 16px; }
 .lesson h3 { margin-bottom: 6px; }
+
+/* Narrow phones; kept last so it wins over the base rules above */
+@media (max-width: 420px) {
+  main { padding-top: 16px; }
+  .matrix { font-size: 12px; gap: 4px; }
+  .matrix .h { padding: 4px 0; }
+  .matrix .cell { padding: 10px 2px; }
+  .matrix .cell b { font-size: 18px; }
+  .matrix .cell .who { font-size: 10px; }
+  .pair { gap: 6px; }
+  .payoff-inputs { grid-template-columns: repeat(2, 1fr); }
+  .score b { font-size: 24px; }
+  /* the 12-item legend sits inside the canvas, so the plot needs extra height on a phone */
+  #evoBox { height: 460px; }
+}
 </style>
 </head>
 <body>
@@ -345,7 +362,7 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
       <label>Поколений в эволюции: <output id="gensOut">150</output>
         <input type="range" id="gens" min="20" max="500" step="10" value="150"></label>
     </div>
-    <div class="empty" id="tourEmpty" hidden>
+    <div class="tour-empty" id="tourEmpty" hidden>
       <b>Нужно хотя бы две стратегии.</b>
       <span id="tourEmptyText"></span>
     </div>
@@ -552,6 +569,8 @@ function chartDefaults() {
   Chart.defaults.color = css('--muted');
   Chart.defaults.borderColor = css('--grid');
   Chart.defaults.font.family = css('--f-body');
+  // keep axis labels horizontal; Chart.js then skips some instead of tilting them on narrow screens
+  Chart.defaults.scale.ticks.maxRotation = 0;
 }
 const charts = {};
 function makeChart(key, canvasId, config) {
@@ -692,7 +711,7 @@ function drawPlayChart() {
         x: { title: { display: true, text: 'раунд' }, grid: { display: false } },
         y: { beginAtZero: true, suggestedMax: ROUNDS * pay.R, title: { display: true, text: 'очки' } },
       },
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8 } } },
     },
   });
 }
@@ -766,7 +785,7 @@ function drawDuel() {
         x: { title: { display: true, text: 'раунд' }, ticks: { maxTicksLimit: 11 }, grid: { display: false } },
         y: { beginAtZero: true, title: { display: true, text: 'очки' } },
       },
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8 } } },
     },
   });
 
@@ -938,7 +957,7 @@ function drawEvolution() {
       },
       plugins: {
         // Stacked areas draw dataset 0 at the bottom; list top-to-bottom to match the picture
-        legend: { position: 'bottom', reverse: true, labels: { usePointStyle: true, boxWidth: 8 } },
+        legend: { position: 'bottom', reverse: true, labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8 } },
         tooltip: { itemSort: (a, b) => b.datasetIndex - a.datasetIndex, callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw, 2)}%` } },
       },
     },
