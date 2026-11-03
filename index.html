@@ -741,16 +741,37 @@ function drawTournament() {
     },
   });
 
-  const win = list[order[0]], lose = list[order[order.length - 1]];
-  let text = `<b>Победитель: ${win.name}</b> (${fmt(avg[order[0]])} очка за раунд), последнее место: ${lose.name} (${fmt(avg[order[order.length - 1]])}). `;
+  lastTour.winner = order[0];
+  const top = avg[order[0]], bottom = avg[order[order.length - 1]];
+  const lose = list[order[order.length - 1]];
+  // Every sentence below is checked against the numbers, so the text never contradicts the chart
+  const tied = order.filter(i => top - avg[i] < 0.02);
+  let text = tied.length > 1
+    ? `<b>Первые места почти поровну:</b> ${tied.map(i => `${list[i].name} (${fmt(avg[i])})`).join(', ')}. Разница меньше 0,02 очка за раунд, так что порядок между ними во многом случаен. `
+    : `<b>Победитель: ${list[order[0]].name}</b> (${fmt(top)} очка за раунд). `;
+  text += `Последнее место: ${lose.name} (${fmt(bottom)}). `;
+
+  const meanAvg = avg.reduce((a, b) => a + b, 0) / avg.length;
   const iD = list.findIndex(s => s.id === 'alld');
-  if (iD >= 0 && order.indexOf(iD) >= order.length / 2) {
+  if (iD >= 0 && avg[iD] < meanAvg - 0.1) {
     const beats = list.filter((s, j) => j !== iD && M[iD][j] > M[j][iD]).length;
     const others = list.length - 1;
     const record = beats === others ? 'выигрывает каждую свою встречу' : `выигрывает ${beats} встреч из ${others}, остальные вничью`;
     text += `Эгоист ни разу не проигрывает один на один (${record}), но в сумме набирает мало: с ним никто не сотрудничает. `;
   }
-  if (noise > 0) text += `С шумом ${Math.round(noise * 100)}% случайные ошибки запускают цепочки взаимной мести, поэтому выигрывают стратегии, которые умеют из них выходить (Павлов, Великодушный, Око за два ока).`;
+
+  if (noise > 0) {
+    const p = Math.round(noise * 100);
+    const forgiving = ['gtft', 'pavlov', 'tf2t'].map(id => list.findIndex(s => s.id === id)).filter(i => i >= 0);
+    const bestRank = forgiving.length ? Math.min(...forgiving.map(i => order.indexOf(i))) : -1;
+    if (top - bottom < 0.3) {
+      text += `При шуме ${p}% ходы становятся во многом случайными, и разница между стратегиями почти стирается: все набрали от ${fmt(bottom)} до ${fmt(top)}. Чтобы увидеть влияние ошибок, попробуйте шум 1–5%.`;
+    } else if (bestRank >= 0 && bestRank < 3) {
+      text += `Шум ${p}%: случайные ошибки запускают цепочки взаимной мести, и выигрывают те, кто умеет прощать. ${list[order[bestRank]].name} на ${bestRank + 1}-м месте.`;
+    } else {
+      text += `Шум ${p}%: случайные ошибки запускают цепочки взаимной мести.`;
+    }
+  }
   verdict.innerHTML = text;
 }
 
@@ -803,6 +824,18 @@ function drawEvolution() {
   if (iD >= 0) {
     const peak = Math.max(...series[iD]);
     if (peak > 100 / n + 0.5) text += `Эгоист сначала растёт (до ${fmt(peak, 1)}%), пока вокруг много наивных жертв, а потом вымирает вместе с ними.`;
+  }
+
+  // Explain when the tournament winner is not the evolution winner
+  const tw = lastTour.winner, ew = list.indexOf(final[0].s);
+  if (tw !== ew) {
+    const twName = list[tw].name, ewName = list[ew].name, twShare = x[tw] * 100;
+    if (M[ew][ew] - M[tw][tw] > 0.2) {
+      text += `<br><br><b>Почему не ${twName}, если в турнире эта стратегия первая?</b> В турнире каждый встречает всех соперников поровну. В эволюции чаще всего встречаешь тех, кто размножился, в том числе свои копии. ${twName} против самого себя набирает ${fmt(M[tw][tw])} очка за раунд, а ${ewName} против себя ${fmt(M[ew][ew])}. ` +
+        (twShare < 0.1 ? `Поэтому ${twName} вымирает.` : `Поэтому в итоге у этой стратегии только ${fmt(twShare, 1)}%.`);
+    } else if (twShare > 1) {
+      text += `<br><br><b>Почему ${twName} не на первом месте?</b> Когда агрессивные стратегии вымирают, оставшиеся сотрудничают друг с другом и набирают поровну, поэтому их доли застывают. Итог решился в первых поколениях: у кого лучше получалось с агрессивными, тот и сохранил долю побольше.`;
+    }
   }
   verdict.innerHTML = text;
 }
