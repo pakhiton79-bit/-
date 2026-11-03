@@ -119,6 +119,18 @@ input[type=number], select {
   font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
   border-radius: 10px; padding: 8px 10px; width: 100%;
 }
+select {
+  appearance: none; -webkit-appearance: none;
+  font-weight: 600; cursor: pointer; border-radius: 12px; padding: 11px 40px 11px 14px;
+  /* chevron drawn with two gradients so it follows the theme colors */
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 52%, calc(100% - 15px) 52%;
+  background-size: 5px 5px; background-repeat: no-repeat;
+  transition: border-color .15s, box-shadow .15s;
+}
+select:hover { border-color: var(--muted); }
+select:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+select option { background: var(--card); color: var(--ink); font-weight: 500; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
 .note { border-radius: 12px; padding: 12px 14px; font-size: 14px; background: var(--bg); border: 1px solid var(--line); }
 .note.bad { border-color: var(--defect); color: var(--defect); }
@@ -397,6 +409,12 @@ const STRATS = [
       if (me.length < 4) return opening[me.length];
       return op.slice(0, 4).includes(D) ? last(op) : D;
     } },
+  { id: 'majority', name: 'Большинство', color: '#d4a90f', random: false,
+    desc: 'Молчит, если соперник за всю игру молчал не реже, чем сдавал.',
+    play: (me, op) => op.filter(m => m === C).length >= op.filter(m => m === D).length ? C : D },
+  { id: 'joss', name: 'Хитрец', color: '#9c6644', random: true,
+    desc: 'Как «Око за око», но в 10% случаев неожиданно предаёт.',
+    play: (me, op, r) => (op.length && last(op) === D) || r() < 0.1 ? D : C },
   { id: 'random', name: 'Монетка', color: '#a3906b', random: true,
     desc: 'Каждый раз решает подбрасыванием монеты.',
     play: (m, o, r) => r() < 0.5 ? C : D },
@@ -652,7 +670,7 @@ function drawDuel() {
 }
 
 /* ---------- 4. Tournament ---------- */
-const DEFAULT_ON = ['tft', 'allc', 'alld', 'grim', 'tf2t', 'pavlov', 'stft', 'detective', 'random'];
+const DEFAULT_ON = ['tft', 'allc', 'alld', 'grim', 'tf2t', 'pavlov', 'stft', 'detective', 'majority', 'joss', 'random'];
 function setupStratList() {
   document.getElementById('stratList').innerHTML = STRATS.map(s => `
     <label class="strat">
