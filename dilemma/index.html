@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дилемма заключённого</title>
+<meta name="description" content="Интерактивный симулятор дилеммы заключённого: сыграйте сами, устройте турнир стратегий и посмотрите на эволюцию популяции.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Layout: one centered column of numbered sections (rules, play, tournament, evolution, lessons), each a card; charts sit inside cards */
+:root {
+  --bg: #f4f2ee;
+  --card: #ffffff;
+  --ink: #1d1b19;
+  --muted: #6b665f;
+  --line: #e2ded6;
+  --accent: #3b5bdb;
+  --coop: #2f9e6b;
+  --coop-soft: #e3f4ec;
+  --defect: #d9483b;
+  --defect-soft: #fbe7e4;
+  --warn: #b7791f;
+  --grid: rgba(0, 0, 0, 0.07);
+  --f-head: "Unbounded", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Onest", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131417;
+    --card: #1c1d21;
+    --ink: #ecebe8;
+    --muted: #9c9a95;
+    --line: #2e3036;
+    --accent: #7c95ff;
+    --coop: #4cc38a;
+    --coop-soft: #173327;
+    --defect: #f06a5c;
+    --defect-soft: #3a1d1a;
+    --warn: #e0a84a;
+    --grid: rgba(255, 255, 255, 0.08);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131417;
+  --card: #1c1d21;
+  --ink: #ecebe8;
+  --muted: #9c9a95;
+  --line: #2e3036;
+  --accent: #7c95ff;
+  --coop: #4cc38a;
+  --coop-soft: #173327;
+  --defect: #f06a5c;
+  --defect-soft: #3a1d1a;
+  --warn: #e0a84a;
+  --grid: rgba(255, 255, 255, 0.08);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+h1, h2, h3 { font-family: var(--f-head); font-weight: 700; line-height: 1.2; margin: 0; }
+h1 { font-size: clamp(28px, 6vw, 46px); letter-spacing: -0.01em; }
+h2 { font-size: clamp(20px, 3.4vw, 26px); }
+h3 { font-size: 16px; font-weight: 500; }
+p { margin: 0 0 12px; }
+.lead { font-size: 18px; color: var(--muted); max-width: 720px; margin-top: 14px; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+header { padding: 24px 0 28px; }
+.kicker { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 10px; }
+
+section.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 28px;
+  margin-bottom: 22px;
+}
+.sec-head { display: flex; gap: 14px; align-items: baseline; margin-bottom: 14px; }
+.num { font-family: var(--f-head); color: var(--accent); font-size: 15px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+@media (max-width: 760px) {
+  .cols { grid-template-columns: 1fr; gap: 20px; }
+  section.card { padding: 20px 16px; }
+}
+
+/* Payoff matrix */
+.matrix { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; font-size: 14px; }
+.matrix .h { color: var(--muted); font-weight: 600; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px; }
+.matrix .cell {
+  border-radius: 12px; padding: 12px 8px; text-align: center; border: 2px solid transparent;
+  transition: border-color .2s, transform .2s;
+}
+.matrix .cell b { font-family: var(--f-head); font-size: 22px; display: block; }
+.matrix .cell .who { color: var(--muted); font-size: 12px; }
+.matrix .cell.cc { background: var(--coop-soft); }
+.matrix .cell.dd { background: var(--defect-soft); }
+.matrix .cell.cd, .matrix .cell.dc { background: color-mix(in srgb, var(--warn) 14%, var(--card)); }
+.matrix .cell.hit { border-color: var(--accent); transform: scale(1.03); }
+.matrix .cell.nash { box-shadow: inset 0 0 0 2px var(--defect); }
+.pair { display: flex; justify-content: center; gap: 14px; }
+.pair span { display: block; }
+
+.payoff-inputs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0 8px; }
+.payoff-inputs label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+input[type=number], select {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 10px; width: 100%;
+}
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.note { border-radius: 12px; padding: 12px 14px; font-size: 14px; background: var(--bg); border: 1px solid var(--line); }
+.note.bad { border-color: var(--defect); color: var(--defect); }
+
+/* Buttons */
+button {
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); padding: 10px 16px; transition: transform .1s, filter .15s;
+}
+button:hover { filter: brightness(0.97); }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.coop { background: var(--coop); color: #fff; border-color: var(--coop); }
+button.defect { background: var(--defect); color: #fff; border-color: var(--defect); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.big-btns button { flex: 1 1 160px; padding: 16px; font-size: 17px; }
+
+/* Play */
+.scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+.score { background: var(--bg); border-radius: 12px; padding: 12px 14px; }
+.score b { font-family: var(--f-head); font-size: 28px; display: block; }
+.history { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; min-height: 58px; }
+.rnd { display: flex; flex-direction: column; gap: 3px; align-items: center; font-size: 11px; color: var(--muted); }
+.chip { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; }
+.chip.c { background: var(--coop); }
+.chip.d { background: var(--defect); }
+.chip.empty { background: var(--line); }
+@media (max-width: 420px) {
+  .history { gap: 4px; }
+  .chip { width: 24px; height: 24px; }
+}
+.reveal { margin-top: 14px; }
+
+/* Strategy picker */
+.strats { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 14px 0; }
+.strat {
+  display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 12px; cursor: pointer; background: var(--bg);
+}
+.strat input { margin-top: 4px; accent-color: var(--accent); }
+.strat .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-top: 7px; }
+.strat b { font-weight: 600; display: block; }
+.strat span { font-size: 13px; color: var(--muted); line-height: 1.35; display: block; }
+.controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 18px; align-items: end; margin-bottom: 18px; }
+.controls label { font-size: 14px; color: var(--muted); display: block; }
+.controls output { color: var(--ink); font-weight: 600; }
+@media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+
+.chart-box { position: relative; height: 340px; }
+.chart-box.short { height: 240px; }
+
+/* Heatmap */
+.heat-wrap { overflow-x: auto; margin-top: 18px; }
+table.heat { border-collapse: separate; border-spacing: 3px; font-size: 13px; min-width: 100%; }
+table.heat th { font-weight: 600; color: var(--muted); padding: 4px 6px; white-space: nowrap; }
+table.heat thead th { writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; height: 120px; vertical-align: bottom; }
+table.heat tbody th { text-align: right; }
+table.heat td { text-align: center; padding: 7px 4px; border-radius: 6px; min-width: 42px; font-variant-numeric: tabular-nums; }
+.legend-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend-bar i { display: block; width: 140px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, hsl(5 70% 52%), hsl(45 80% 52%), hsl(140 55% 42%)); }
+
+.verdict { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: var(--bg); }
+.lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 10px; }
+.lesson { background: var(--bg); border-radius: 14px; padding: 16px; }
+.lesson h3 { margin-bottom: 6px; }
+footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 28px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="kicker">Теория игр · симулятор</div>
+    <h1>Дилемма заключённого</h1>
+    <p class="lead">Двух подельников допрашивают в разных комнатах. Каждый может <b style="color:var(--coop)">молчать</b> (сотрудничать с напарником) или <b style="color:var(--defect)">сдать</b> его (предать). Каждому выгодно предать, но если предадут оба, обоим будет хуже, чем если бы оба промолчали. Здесь можно сыграть самому, устроить турнир стратегий и посмотреть, кто выживет в эволюции.</p>
+  </header>
+
+  <!-- 1. Rules -->
+  <section class="card" id="rules">
+    <div class="sec-head"><span class="num">01</span><h2>Правила одного раунда</h2></div>
+    <div class="cols">
+      <div>
+        <div class="matrix" id="matrix"></div>
+        <div class="payoff-inputs">
+          <label>T, соблазн<input type="number" id="pT" value="5" step="1"></label>
+          <label>R, награда<input type="number" id="pR" value="3" step="1"></label>
+          <label>P, наказание<input type="number" id="pP" value="1" step="1"></label>
+          <label>S, лох<input type="number" id="pS" value="0" step="1"></label>
+        </div>
+        <p class="small muted">Очки: чем больше, тем лучше. Числа можно менять, все разделы ниже сразу пересчитаются.</p>
+      </div>
+      <div>
+        <p><b>Почему это дилемма.</b> Посмотрите на игру глазами одного игрока:</p>
+        <p id="why"></p>
+        <div class="note" id="validity"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Play -->
+  <section class="card" id="play">
+    <div class="sec-head"><span class="num">02</span><h2>Сыграйте сами</h2></div>
+    <div class="cols">
+      <div>
+        <p>Десять раундов против компьютера. Соперник помнит все прошлые ходы. Попробуйте угадать его стратегию.</p>
+        <div class="row" style="margin-bottom:14px">
+          <select id="oppSelect" style="flex:1 1 220px"></select>
+          <button id="restart">Новая партия</button>
+        </div>
+        <div class="row big-btns">
+          <button class="coop" id="btnC">Молчать</button>
+          <button class="defect" id="btnD">Сдать</button>
+        </div>
+        <div class="scoreboard">
+          <div class="score"><span class="muted small">Вы</span><b id="myScore">0</b></div>
+          <div class="score"><span class="muted small" id="oppLabel">Соперник</span><b id="oppScore">0</b></div>
+        </div>
+        <div class="small muted">Вы</div>
+        <div class="history" id="histMe"></div>
+        <div class="small muted">Соперник</div>
+        <div class="history" id="histOpp"></div>
+        <div class="verdict reveal" id="playVerdict" hidden></div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:8px">Счёт по ходу партии</h3>
+        <div class="chart-box short"><canvas id="playChart"></canvas></div>
+        <h3 style="margin:18px 0 8px">Последний раунд</h3>
+        <div class="matrix" id="matrixPlay"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Tournament -->
+  <section class="card" id="tournament">
+    <div class="sec-head"><span class="num">03</span><h2>Турнир стратегий</h2></div>
+    <p>Как в знаменитом турнире Роберта Аксельрода (1980): каждая стратегия играет с каждой, включая копию самой себя. Побеждает та, у которой больше средний выигрыш за раунд.</p>
+    <div class="strats" id="stratList"></div>
+    <div class="controls">
+      <label>Раундов в матче: <output id="roundsOut">200</output>
+        <input type="range" id="rounds" min="5" max="500" step="5" value="200"></label>
+      <label>Шум (ход случайно меняется на противоположный): <output id="noiseOut">0%</output>
+        <input type="range" id="noise" min="0" max="20" step="1" value="0"></label>
+      <button class="primary" id="runTour">Запустить турнир</button>
+    </div>
+    <h3 style="margin-bottom:8px">Средний выигрыш за раунд</h3>
+    <div class="chart-box"><canvas id="tourChart"></canvas></div>
+    <h3 style="margin-top:22px">Кто сколько получает против кого</h3>
+    <p class="small muted">Строка: стратегия, столбец: её соперник. В клетке средний выигрыш строки за раунд.</p>
+    <div class="heat-wrap"><table class="heat" id="heat"></table></div>
+    <div class="legend-bar"><span id="legLo">0</span><i></i><span id="legHi">5</span></div>
+    <div class="verdict" id="tourVerdict"></div>
+  </section>
+
+  <!-- 4. Evolution -->
+  <section class="card" id="evolution">
+    <div class="sec-head"><span class="num">04</span><h2>Эволюция</h2></div>
+    <p>Теперь представим популяцию, где стратегии встречаются случайно. Те, кто набирает больше очков, чем в среднем, размножаются, остальные вымирают. Используются стратегии и настройки турнира выше. Начальная доля у всех одинаковая.</p>
+    <div class="controls">
+      <label>Поколений: <output id="gensOut">150</output>
+        <input type="range" id="gens" min="20" max="500" step="10" value="150"></label>
+      <div></div>
+      <button class="primary" id="runEvo">Запустить эволюцию</button>
+    </div>
+    <h3 style="margin-bottom:8px">Доля стратегий в популяции</h3>
+    <div class="chart-box"><canvas id="evoChart"></canvas></div>
+    <div class="verdict" id="evoVerdict"></div>
+  </section>
+
+  <!-- 5. Lessons -->
+  <section class="card" id="lessons">
+    <div class="sec-head"><span class="num">05</span><h2>Что из этого следует</h2></div>
+    <p>Аксельрод выяснил, что у успешных стратегий в повторяющейся игре есть четыре общих черты:</p>
+    <div class="lessons">
+      <div class="lesson"><h3>Доброта</h3><p class="small">Никогда не предавать первым. Почти все лидеры турнира начинают с сотрудничества.</p></div>
+      <div class="lesson"><h3>Ответ</h3><p class="small">Наказывать за предательство. Добряка, который всё прощает, эгоисты съедают.</p></div>
+      <div class="lesson"><h3>Прощение</h3><p class="small">Вернуться к сотрудничеству, когда соперник исправился. Включите шум, и Злопамятный начнёт проигрывать.</p></div>
+      <div class="lesson"><h3>Ясность</h3><p class="small">Быть понятным. Сопернику легко научиться сотрудничать с «Оком за око».</p></div>
+    </div>
+    <p class="small muted" style="margin-top:16px">В одном раунде разумно предавать. Но если игра повторяется и неизвестно, когда она закончится, «тень будущего» делает сотрудничество выгодным.</p>
+  </section>
+
+  <footer>Симулятор работает прямо в браузере, без сервера.</footer>
+</main>
+
+<script>
+const C = 1, D = 0;
+const pay = { T: 5, R: 3, P: 1, S: 0 };
+
+function payoff(a, b) {
+  if (a === C && b === C) return pay.R;
+  if (a === C && b === D) return pay.S;
+  if (a === D && b === C) return pay.T;
+  return pay.P;
+}
+
+// Seeded RNG so tournament runs are reproducible
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+const last = (h) => h[h.length - 1];
+
+// play(myHistory, opponentHistory, rng) -> C or D
+const STRATS = [
+  { id: 'tft', name: 'Око за око', color: '#3b6fd8', random: false,
+    desc: 'Начинает с сотрудничества, потом повторяет прошлый ход соперника.',
+    play: (me, op) => op.length ? last(op) : C },
+  { id: 'allc', name: 'Добряк', color: '#2f9e6b', random: false,
+    desc: 'Всегда молчит, что бы ни случилось.',
+    play: () => C },
+  { id: 'alld', name: 'Эгоист', color: '#d9483b', random: false,
+    desc: 'Всегда сдаёт.',
+    play: () => D },
+  { id: 'grim', name: 'Злопамятный', color: '#7a4bc4', random: false,
+    desc: 'Сотрудничает, пока его не предали. После этого предаёт навсегда.',
+    play: (me, op) => op.includes(D) ? D : C },
+  { id: 'tf2t', name: 'Око за два ока', color: '#1aa3b8', random: false,
+    desc: 'Мстит, только если его предали два раза подряд.',
+    play: (me, op) => (op.length >= 2 && last(op) === D && op[op.length - 2] === D) ? D : C },
+  { id: 'gtft', name: 'Великодушный', color: '#8bb83a', random: true,
+    desc: 'Как «Око за око», но в 30% случаев прощает предательство.',
+    play: (me, op, r) => (!op.length || last(op) === C) ? C : (r() < 0.3 ? C : D) },
+  { id: 'pavlov', name: 'Павлов', color: '#e08a1e', random: false,
+    desc: 'Если в прошлом раунде получил много, повторяет ход, если мало, меняет.',
+    play: (me, op) => !me.length ? C : (last(me) === last(op) ? C : D) },
+  { id: 'stft', name: 'Подозрительный', color: '#b8527a', random: false,
+    desc: '«Око за око», но первым ходом предаёт.',
+    play: (me, op) => op.length ? last(op) : D },
+  { id: 'detective', name: 'Детектив', color: '#6b7a8f', random: false,
+    desc: 'Первые ходы: молчит, сдаёт, молчит, молчит. Если соперник не мстил, эксплуатирует его, иначе играет «Око за око».',
+    play: (me, op) => {
+      const opening = [C, D, C, C];
+      if (me.length < 4) return opening[me.length];
+      return op.slice(0, 4).includes(D) ? last(op) : D;
+    } },
+  { id: 'random', name: 'Монетка', color: '#a3906b', random: true,
+    desc: 'Каждый раз решает подбрасыванием монеты.',
+    play: (m, o, r) => r() < 0.5 ? C : D },
+];
+const byId = Object.fromEntries(STRATS.map(s => [s.id, s]));
+
+function playMatch(a, b, rounds, noise, rng) {
+  const ha = [], hb = [];
+  let sa = 0, sb = 0;
+  for (let i = 0; i < rounds; i++) {
+    let ma = a.play(ha, hb, rng), mb = b.play(hb, ha, rng);
+    if (noise && rng() < noise) ma = 1 - ma;
+    if (noise && rng() < noise) mb = 1 - mb;
+    ha.push(ma); hb.push(mb);
+    sa += payoff(ma, mb); sb += payoff(mb, ma);
+  }
+  return { sa, sb };
+}
+
+// M[i][j] = average per-round payoff of strategy i against strategy j
+function payoffMatrix(list, rounds, noise) {
+  const stochastic = noise > 0 || list.some(s => s.random);
+  const reps = stochastic ? 12 : 1;
+  const rng = mulberry32(42);
+  const n = list.length;
+  const M = Array.from({ length: n }, () => Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = i; j < n; j++) {
+      let si = 0, sj = 0;
+      for (let k = 0; k < reps; k++) {
+        const r = playMatch(list[i], list[j], rounds, noise, rng);
+        si += r.sa; sj += r.sb;
+      }
+      M[i][j] = si / reps / rounds;
+      M[j][i] = sj / reps / rounds;
+      if (i === j) M[i][i] = (si + sj) / 2 / reps / rounds;
+    }
+  }
+  return M;
+}
+
+/* ---------- theme helpers for charts ---------- */
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function chartDefaults() {
+  Chart.defaults.color = css('--muted');
+  Chart.defaults.borderColor = css('--grid');
+  Chart.defaults.font.family = css('--f-body');
+}
+const charts = {};
+function makeChart(key, canvasId, config) {
+  if (charts[key]) charts[key].destroy();
+  chartDefaults();
+  charts[key] = new Chart(document.getElementById(canvasId), config);
+}
+const fmt = (x, d = 2) => x.toFixed(d).replace('.', ',');
+
+/* ---------- 1. Rules / matrix ---------- */
+function matrixHTML(hit) {
+  const cell = (cls, me, op, a, b) => `
+    <div class="cell ${cls}${hit === cls ? ' hit' : ''}${cls === 'dd' ? ' nash' : ''}">
+      <div class="pair"><span><b style="color:var(--accent)">${me}</b><span class="who">вы</span></span>
+      <span><b>${op}</b><span class="who">соперник</span></span></div>
+    </div>`;
+  return `
+    <div class="h"></div>
+    <div class="h">Соперник<br>молчит</div>
+    <div class="h">Соперник<br>сдаёт</div>
+    <div class="h">Вы<br>молчите</div>
+    ${cell('cc', pay.R, pay.R)}
+    ${cell('cd', pay.S, pay.T)}
+    <div class="h">Вы<br>сдаёте</div>
+    ${cell('dc', pay.T, pay.S)}
+    ${cell('dd', pay.P, pay.P)}`;
+}
+
+function renderRules() {
+  document.getElementById('matrix').innerHTML = matrixHTML(null);
+  const { T, R, P, S } = pay;
+  document.getElementById('why').innerHTML =
+    `Если соперник молчит, вам выгоднее сдать его (${T} очков вместо ${R}). ` +
+    `Если соперник сдаёт, вам тоже выгоднее сдать (${P} вместо ${S}). ` +
+    `Значит, при любом ходе соперника предательство лучше. Так рассуждают оба и получают по <b>${P}</b>, ` +
+    `хотя молча могли бы получить по <b>${R}</b>. Клетка в красной рамке — равновесие Нэша: никому не выгодно менять ход в одиночку.`;
+  const v = document.getElementById('validity');
+  const problems = [];
+  if (!(T > R && R > P && P > S)) problems.push('нужно T > R > P > S');
+  if (!(2 * R > T + S)) problems.push('нужно 2R > T + S, иначе выгоднее по очереди предавать друг друга, чем всё время сотрудничать');
+  if (problems.length) {
+    v.className = 'note bad';
+    v.textContent = 'С такими числами это уже не дилемма заключённого: ' + problems.join('; ') + '.';
+  } else {
+    v.className = 'note';
+    v.innerHTML = `Сейчас: соблазн T=${T} &gt; награда R=${R} &gt; наказание P=${P} &gt; «лох» S=${S}, и 2R &gt; T+S. Это классическая дилемма.`;
+  }
+}
+
+/* ---------- 2. Play ---------- */
+const ROUNDS = 10;
+const game = { opp: null, me: [], op: [], my: 0, their: 0, mystery: false, rng: Math.random };
+
+function setupPlaySelect() {
+  const sel = document.getElementById('oppSelect');
+  sel.innerHTML = '<option value="mystery">Загадочный соперник</option>' +
+    STRATS.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  sel.onchange = newGame;
+}
+
+function newGame() {
+  const v = document.getElementById('oppSelect').value;
+  game.mystery = v === 'mystery';
+  game.opp = game.mystery ? STRATS[Math.floor(Math.random() * STRATS.length)] : byId[v];
+  game.me = []; game.op = []; game.my = 0; game.their = 0;
+  document.getElementById('oppLabel').textContent = game.mystery ? 'Соперник' : game.opp.name;
+  document.getElementById('playVerdict').hidden = true;
+  renderPlay(null);
+}
+
+function move(m) {
+  if (game.me.length >= ROUNDS) return;
+  const o = game.opp.play(game.op, game.me, game.rng);
+  game.me.push(m); game.op.push(o);
+  game.my += payoff(m, o); game.their += payoff(o, m);
+  renderPlay((m ? 'c' : 'd') + (o ? 'c' : 'd'));
+  if (game.me.length === ROUNDS) finishGame();
+}
+
+function historyHTML(h) {
+  let out = '';
+  for (let i = 0; i < ROUNDS; i++) {
+    const m = h[i];
+    const chip = m === undefined ? '<div class="chip empty"></div>'
+      : `<div class="chip ${m ? 'c' : 'd'}" title="${m ? 'молчит' : 'сдаёт'}">${m ? 'М' : 'С'}</div>`;
+    out += `<div class="rnd">${chip}${i + 1}</div>`;
+  }
+  return out;
+}
+
+function renderPlay(hit) {
+  document.getElementById('myScore').textContent = game.my;
+  document.getElementById('oppScore').textContent = game.their;
+  document.getElementById('histMe').innerHTML = historyHTML(game.me);
+  document.getElementById('histOpp').innerHTML = historyHTML(game.op);
+  document.getElementById('matrixPlay').innerHTML = matrixHTML(hit);
+  const done = game.me.length >= ROUNDS;
+  document.getElementById('btnC').disabled = done;
+  document.getElementById('btnD').disabled = done;
+  drawPlayChart();
+}
+
+function drawPlayChart() {
+  const cum = (a, b) => { let s = 0; return [0, ...a.map((m, i) => (s += payoff(m, b[i])))]; };
+  const labels = Array.from({ length: ROUNDS + 1 }, (_, i) => i);
+  makeChart('play', 'playChart', {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Вы', data: cum(game.me, game.op), borderColor: css('--accent'), backgroundColor: css('--accent'), tension: .25, borderWidth: 2.5 },
+      { label: game.mystery && game.me.length < ROUNDS ? 'Соперник' : game.opp.name, data: cum(game.op, game.me), borderColor: css('--warn'), backgroundColor: css('--warn'), tension: .25, borderWidth: 2.5, borderDash: [6, 4] },
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 250 },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { title: { display: true, text: 'раунд' }, grid: { display: false } },
+        y: { beginAtZero: true, suggestedMax: ROUNDS * pay.R, title: { display: true, text: 'очки' } },
+      },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
+    },
+  });
+}
+
+function finishGame() {
+  const coopAll = ROUNDS * pay.R;
+  const coopRate = Math.round(100 * game.me.filter(m => m === C).length / ROUNDS);
+  let msg = `<b>Партия окончена.</b> ${game.mystery ? `Вашим соперником был <b>${game.opp.name}</b>: ${game.opp.desc.toLowerCase()} ` : ''}`;
+  msg += `Вы сотрудничали в ${coopRate}% раундов и набрали ${game.my} очков. `;
+  msg += `Если бы оба всё время молчали, каждый получил бы ${coopAll}. `;
+  msg += game.my > game.their ? 'Вы обыграли соперника, но в этой игре важнее собственный счёт, а не победа над другим.'
+       : game.my === game.their ? 'Ничья.'
+       : 'Соперник набрал больше. Попробуйте понять его логику и сыграть ещё раз.';
+  const el = document.getElementById('playVerdict');
+  el.innerHTML = msg; el.hidden = false;
+  document.getElementById('oppLabel').textContent = game.opp.name;
+  drawPlayChart();
+}
+
+/* ---------- 3. Tournament ---------- */
+const DEFAULT_ON = ['tft', 'allc', 'alld', 'grim', 'tf2t', 'pavlov', 'stft', 'detective', 'random'];
+function setupStratList() {
+  document.getElementById('stratList').innerHTML = STRATS.map(s => `
+    <label class="strat">
+      <input type="checkbox" value="${s.id}" ${DEFAULT_ON.includes(s.id) ? 'checked' : ''}>
+      <i class="dot" style="background:${s.color}"></i>
+      <div><b>${s.name}</b><span>${s.desc}</span></div>
+    </label>`).join('');
+}
+const selected = () => [...document.querySelectorAll('#stratList input:checked')].map(i => byId[i.value]);
+const settings = () => ({
+  rounds: +document.getElementById('rounds').value,
+  noise: +document.getElementById('noise').value / 100,
+});
+
+function heatColor(v) {
+  const t = Math.max(0, Math.min(1, (v - pay.S) / ((pay.T - pay.S) || 1)));
+  const hue = t < .5 ? 5 + t * 80 : 45 + (t - .5) * 190;
+  return `hsl(${hue} 65% 48% / ${0.22 + 0.5 * Math.abs(t - .5)})`;
+}
+
+let lastTour = null;
+function runTournament() {
+  const list = selected();
+  const verdict = document.getElementById('tourVerdict');
+  if (list.length < 2) { verdict.textContent = 'Выберите хотя бы две стратегии.'; return; }
+  const { rounds, noise } = settings();
+  const M = payoffMatrix(list, rounds, noise);
+  const avg = M.map(row => row.reduce((a, b) => a + b, 0) / row.length);
+  const order = list.map((s, i) => i).sort((a, b) => avg[b] - avg[a]);
+  lastTour = { list, M, avg, order };
+
+  makeChart('tour', 'tourChart', {
+    type: 'bar',
+    data: {
+      labels: order.map(i => list[i].name),
+      datasets: [{ data: order.map(i => avg[i]), backgroundColor: order.map(i => list[i].color), borderRadius: 6, maxBarThickness: 46 }],
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { beginAtZero: true, suggestedMax: pay.R, title: { display: true, text: 'очков за раунд' } },
+        y: { grid: { display: false }, ticks: { color: css('--ink'), font: { weight: 600 } } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${fmt(c.raw)} очка за раунд` } },
+      },
+    },
+  });
+
+  const heat = document.getElementById('heat');
+  heat.innerHTML = '<thead><tr><th></th>' + order.map(j => `<th>${list[j].name}</th>`).join('') + '</tr></thead><tbody>' +
+    order.map(i => `<tr><th>${list[i].name}</th>` +
+      order.map(j => `<td style="background:${heatColor(M[i][j])}" title="${list[i].name} против ${list[j].name}">${fmt(M[i][j], 1)}</td>`).join('') +
+    '</tr>').join('') + '</tbody>';
+  document.getElementById('legLo').textContent = pay.S;
+  document.getElementById('legHi').textContent = pay.T;
+
+  const win = list[order[0]], lose = list[order[order.length - 1]];
+  let text = `<b>Победитель: ${win.name}</b> (${fmt(avg[order[0]])} очка за раунд), последнее место: ${lose.name} (${fmt(avg[order[order.length - 1]])}). `;
+  const iD = list.findIndex(s => s.id === 'alld');
+  if (iD >= 0 && order.indexOf(iD) >= order.length / 2) {
+    const beats = list.filter((s, j) => j !== iD && M[iD][j] > M[j][iD]).length;
+    text += `Эгоист не проигрывает ни одной отдельной встречи (выигрывает ${beats} из ${list.length - 1}, остальные вничью), но в сумме набирает мало: с ним никто не сотрудничает. `;
+  }
+  if (noise > 0) text += `С шумом ${Math.round(noise * 100)}% случайные ошибки запускают цепочки взаимной мести, поэтому выигрывают стратегии, которые умеют из них выходить (Павлов, Великодушный, Око за два ока).`;
+  verdict.innerHTML = text;
+}
+
+/* ---------- 4. Evolution (discrete replicator dynamics) ---------- */
+function runEvolution() {
+  const list = selected();
+  const verdict = document.getElementById('evoVerdict');
+  if (list.length < 2) { verdict.textContent = 'Выберите хотя бы две стратегии в турнире выше.'; return; }
+  const { rounds, noise } = settings();
+  const gens = +document.getElementById('gens').value;
+  const M = payoffMatrix(list, rounds, noise);
+  const n = list.length;
+  let x = Array(n).fill(1 / n);
+  const series = list.map(() => []);
+  for (let g = 0; g <= gens; g++) {
+    x.forEach((v, i) => series[i].push(+(v * 100).toFixed(2)));
+    const fit = x.map((_, i) => M[i].reduce((s, m, j) => s + m * x[j], 0));
+    const mean = fit.reduce((s, f, i) => s + f * x[i], 0);
+    if (mean <= 0) continue;
+    x = x.map((v, i) => v * fit[i] / mean);
+  }
+
+  makeChart('evo', 'evoChart', {
+    type: 'line',
+    data: {
+      labels: Array.from({ length: gens + 1 }, (_, i) => i),
+      datasets: list.map((s, i) => ({
+        label: s.name, data: series[i], borderColor: s.color, backgroundColor: s.color + 'cc',
+        fill: i === 0 ? 'origin' : '-1', pointRadius: 0, borderWidth: 1, tension: .2,
+      })),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { title: { display: true, text: 'поколение' }, ticks: { maxTicksLimit: 10 }, grid: { display: false } },
+        y: { stacked: true, min: 0, max: 100, title: { display: true, text: '% популяции' } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+        tooltip: { itemSort: (a, b) => b.raw - a.raw, callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw, 1)}%` } },
+      },
+    },
+  });
+
+  const final = x.map((v, i) => ({ s: list[i], v })).sort((a, b) => b.v - a.v);
+  const alive = final.filter(f => f.v > 0.01);
+  const dead = final.filter(f => f.v < 0.001).map(f => f.s.name);
+  let text = `<b>Через ${gens} поколений:</b> ` + alive.map(f => `${f.s.name} ${fmt(f.v * 100, 1)}%`).join(', ') + '. ';
+  if (dead.length) text += `Почти вымерли: ${dead.join(', ')}. `;
+  const iD = list.findIndex(s => s.id === 'alld');
+  if (iD >= 0) {
+    const peak = Math.max(...series[iD]);
+    if (peak > 100 / n + 0.5) text += `Эгоист сначала растёт (до ${fmt(peak, 1)}%), пока вокруг много наивных жертв, а потом вымирает вместе с ними.`;
+  }
+  verdict.innerHTML = text;
+}
+
+/* ---------- wiring ---------- */
+function readPayoffs() {
+  for (const k of ['T', 'R', 'P', 'S']) {
+    const v = parseFloat(document.getElementById('p' + k).value);
+    if (!Number.isNaN(v)) pay[k] = v;
+  }
+  renderRules();
+  newGame();
+  runTournament();
+  runEvolution();
+}
+['pT', 'pR', 'pP', 'pS'].forEach(id => document.getElementById(id).addEventListener('change', readPayoffs));
+
+const bindOut = (id, out, f) => {
+  const el = document.getElementById(id);
+  const upd = () => document.getElementById(out).textContent = f(el.value);
+  el.addEventListener('input', upd); upd();
+};
+bindOut('rounds', 'roundsOut', v => v);
+bindOut('noise', 'noiseOut', v => v + '%');
+bindOut('gens', 'gensOut', v => v);
+
+document.getElementById('btnC').onclick = () => move(C);
+document.getElementById('btnD').onclick = () => move(D);
+document.getElementById('restart').onclick = newGame;
+document.getElementById('runTour').onclick = () => { runTournament(); runEvolution(); };
+document.getElementById('runEvo').onclick = runEvolution;
+
+// Redraw charts when the OS theme flips so axis colors follow
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  drawPlayChart();
+  if (lastTour) runTournament();
+  runEvolution();
+});
+
+setupPlaySelect();
+setupStratList();
+renderRules();
+newGame();
+runTournament();
+runEvolution();
+</script>
+</body>
+</html>
