@@ -744,8 +744,9 @@ function runEvolution() {
         y: { stacked: true, min: 0, max: 100, title: { display: true, text: '% популяции' } },
       },
       plugins: {
-        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
-        tooltip: { itemSort: (a, b) => b.raw - a.raw, callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw, 1)}%` } },
+        // Stacked areas draw dataset 0 at the bottom; list top-to-bottom to match the picture
+        legend: { position: 'bottom', reverse: true, labels: { usePointStyle: true, boxWidth: 8 } },
+        tooltip: { itemSort: (a, b) => b.datasetIndex - a.datasetIndex, callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw, 1)}%` } },
       },
     },
   });
