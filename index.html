@@ -178,7 +178,13 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
 .controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 18px; align-items: end; margin-bottom: 18px; }
 .controls label { font-size: 14px; color: var(--muted); display: block; }
 .controls output { color: var(--ink); font-weight: 600; }
-@media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+.controls.three { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 760px) { .controls, .controls.three { grid-template-columns: 1fr; } }
+.empty {
+  display: flex; flex-direction: column; gap: 4px; align-items: center; text-align: center;
+  padding: 44px 16px; border: 2px dashed var(--line); border-radius: 14px; color: var(--muted);
+}
+.empty b { color: var(--ink); font-family: var(--f-head); font-weight: 500; }
 
 .chart-box { position: relative; height: 340px; }
 .chart-box.short { height: 240px; }
@@ -305,41 +311,43 @@ footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 2
     </div>
   </section>
 
-  <!-- 4. Tournament -->
+  <!-- 4. Group tournament + evolution -->
   <section class="card" id="tournament">
-    <div class="sec-head"><span class="num">04</span><h2>Турнир стратегий</h2></div>
-    <p>Как в знаменитом турнире Роберта Аксельрода (1980): каждая стратегия играет с каждой, включая копию самой себя. Побеждает та, у которой больше средний выигрыш за раунд.</p>
+    <div class="sec-head"><span class="num">04</span><h2>Групповой турнир и эволюция</h2></div>
+    <p>Как в знаменитом турнире Роберта Аксельрода (1980): каждая отмеченная стратегия играет с каждой, включая копию самой себя. По этим же матчам строится эволюция популяции. Результаты пересчитываются сразу, как только вы меняете выбор или настройки.</p>
+    <div class="row" style="margin-top:14px">
+      <button id="pickAll">Выбрать все</button>
+      <button id="pickNone">Снять все</button>
+      <span class="small muted" id="pickCount"></span>
+    </div>
     <div class="strats" id="stratList"></div>
-    <div class="controls">
+    <div class="controls three">
       <label>Раундов в матче: <output id="roundsOut">200</output>
         <input type="range" id="rounds" min="5" max="500" step="5" value="200"></label>
       <label>Шум (ход случайно меняется на противоположный): <output id="noiseOut">0%</output>
         <input type="range" id="noise" min="0" max="20" step="1" value="0"></label>
-      <button class="primary" id="runTour">Запустить турнир</button>
-    </div>
-    <h3 style="margin-bottom:8px">Средний выигрыш за раунд</h3>
-    <div class="chart-box"><canvas id="tourChart"></canvas></div>
-    <div class="verdict" id="tourVerdict"></div>
-  </section>
-
-  <!-- 5. Evolution -->
-  <section class="card" id="evolution">
-    <div class="sec-head"><span class="num">05</span><h2>Эволюция</h2></div>
-    <p>Теперь представим популяцию, где стратегии встречаются случайно. Те, кто набирает больше очков, чем в среднем, размножаются, остальные вымирают. Используются стратегии и настройки турнира выше. Начальная доля у всех одинаковая.</p>
-    <div class="controls">
-      <label>Поколений: <output id="gensOut">150</output>
+      <label>Поколений в эволюции: <output id="gensOut">150</output>
         <input type="range" id="gens" min="20" max="500" step="10" value="150"></label>
-      <div></div>
-      <button class="primary" id="runEvo">Запустить эволюцию</button>
     </div>
-    <h3 style="margin-bottom:8px">Доля стратегий в популяции</h3>
-    <div class="chart-box"><canvas id="evoChart"></canvas></div>
-    <div class="verdict" id="evoVerdict"></div>
+    <div class="empty" id="tourEmpty" hidden>
+      <b>Нужно хотя бы две стратегии.</b>
+      <span id="tourEmptyText"></span>
+    </div>
+    <div id="tourResults">
+      <h3 style="margin-bottom:8px">Средний выигрыш за раунд</h3>
+      <div class="chart-box" id="tourBox"><canvas id="tourChart"></canvas></div>
+      <div class="verdict" id="tourVerdict"></div>
+
+      <h3 style="margin:30px 0 6px">Эволюция: доля стратегий в популяции</h3>
+      <p class="small muted">Представим популяцию, где эти стратегии встречаются случайно. Кто набирает больше среднего, размножается, остальные вымирают. Начальная доля у всех одинаковая.</p>
+      <div class="chart-box"><canvas id="evoChart"></canvas></div>
+      <div class="verdict" id="evoVerdict"></div>
+    </div>
   </section>
 
   <!-- 5. Lessons -->
   <section class="card" id="lessons">
-    <div class="sec-head"><span class="num">06</span><h2>Что из этого следует</h2></div>
+    <div class="sec-head"><span class="num">05</span><h2>Что из этого следует</h2></div>
     <p>Аксельрод выяснил, что у успешных стратегий в повторяющейся игре есть четыре общих черты:</p>
     <div class="lessons">
       <div class="lesson"><h3>Доброта</h3><p class="small">Никогда не предавать первым. Почти все лидеры турнира начинают с сотрудничества.</p></div>
@@ -685,16 +693,35 @@ const settings = () => ({
   noise: +document.getElementById('noise').value / 100,
 });
 
+// One set of matches feeds both the tournament ranking and the evolution chart
 let lastTour = null;
-function runTournament() {
+function runGroup() {
   const list = selected();
-  const verdict = document.getElementById('tourVerdict');
-  if (list.length < 2) { verdict.textContent = 'Выберите хотя бы две стратегии.'; return; }
+  const n = list.length;
+  document.getElementById('pickCount').textContent = `Выбрано: ${n} из ${STRATS.length}`;
+  const empty = n < 2;
+  document.getElementById('tourEmpty').hidden = !empty;
+  document.getElementById('tourResults').hidden = empty;
+  if (empty) {
+    lastTour = null;
+    document.getElementById('tourEmptyText').textContent = n === 1
+      ? `Стратегии «${list[0].name}» не с кем соревноваться. Отметьте ещё одну.`
+      : 'Отметьте стратегии выше или нажмите «Выбрать все».';
+    return;
+  }
   const { rounds, noise } = settings();
-  const M = payoffMatrix(list, rounds, noise);
+  lastTour = { list, noise, M: payoffMatrix(list, rounds, noise) };
+  drawTournament();
+  drawEvolution();
+}
+
+function drawTournament() {
+  const { list, M, noise } = lastTour;
+  const verdict = document.getElementById('tourVerdict');
   const avg = M.map(row => row.reduce((a, b) => a + b, 0) / row.length);
   const order = list.map((s, i) => i).sort((a, b) => avg[b] - avg[a]);
-  lastTour = { list, M, avg, order };
+  // Fewer bars need less height, so a small group doesn't get fat stretched bars
+  document.getElementById('tourBox').style.height = Math.max(160, 40 + list.length * 34) + 'px';
 
   makeChart('tour', 'tourChart', {
     type: 'bar',
@@ -720,20 +747,19 @@ function runTournament() {
   const iD = list.findIndex(s => s.id === 'alld');
   if (iD >= 0 && order.indexOf(iD) >= order.length / 2) {
     const beats = list.filter((s, j) => j !== iD && M[iD][j] > M[j][iD]).length;
-    text += `Эгоист не проигрывает ни одной отдельной встречи (выигрывает ${beats} из ${list.length - 1}, остальные вничью), но в сумме набирает мало: с ним никто не сотрудничает. `;
+    const others = list.length - 1;
+    const record = beats === others ? 'выигрывает каждую свою встречу' : `выигрывает ${beats} встреч из ${others}, остальные вничью`;
+    text += `Эгоист ни разу не проигрывает один на один (${record}), но в сумме набирает мало: с ним никто не сотрудничает. `;
   }
   if (noise > 0) text += `С шумом ${Math.round(noise * 100)}% случайные ошибки запускают цепочки взаимной мести, поэтому выигрывают стратегии, которые умеют из них выходить (Павлов, Великодушный, Око за два ока).`;
   verdict.innerHTML = text;
 }
 
-/* ---------- 5. Evolution (discrete replicator dynamics) ---------- */
-function runEvolution() {
-  const list = selected();
+/* ---------- evolution (discrete replicator dynamics) ---------- */
+function drawEvolution() {
+  const { list, M } = lastTour;
   const verdict = document.getElementById('evoVerdict');
-  if (list.length < 2) { verdict.textContent = 'Выберите хотя бы две стратегии в турнире выше.'; return; }
-  const { rounds, noise } = settings();
   const gens = +document.getElementById('gens').value;
-  const M = payoffMatrix(list, rounds, noise);
   const n = list.length;
   let x = Array(n).fill(1 / n);
   const series = list.map(() => []);
@@ -791,8 +817,7 @@ function readPayoffs() {
   renderRules();
   newGame();
   runDuel();
-  runTournament();
-  runEvolution();
+  runGroup();
 }
 ['pT', 'pR', 'pP', 'pS'].forEach(id => document.getElementById(id).addEventListener('change', readPayoffs));
 
@@ -810,15 +835,18 @@ bindOut('gens', 'gensOut', v => v);
 document.getElementById('btnC').onclick = () => move(C);
 document.getElementById('btnD').onclick = () => move(D);
 document.getElementById('restart').onclick = newGame;
-document.getElementById('runTour').onclick = () => { runTournament(); runEvolution(); };
-document.getElementById('runEvo').onclick = runEvolution;
+document.getElementById('stratList').addEventListener('change', runGroup);
+['rounds', 'noise'].forEach(id => document.getElementById(id).addEventListener('change', runGroup));
+document.getElementById('gens').addEventListener('change', () => lastTour && drawEvolution());
+const pickAll = on => { document.querySelectorAll('#stratList input').forEach(c => c.checked = on); runGroup(); };
+document.getElementById('pickAll').onclick = () => pickAll(true);
+document.getElementById('pickNone').onclick = () => pickAll(false);
 
 // Redraw charts when the OS theme flips so axis colors follow
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   drawPlayChart();
   if (lastDuel) drawDuel();
-  if (lastTour) runTournament();
-  runEvolution();
+  if (lastTour) { drawTournament(); drawEvolution(); }
 });
 
 setupPlaySelect();
@@ -827,8 +855,7 @@ setupDuel();
 renderRules();
 newGame();
 runDuel();
-runTournament();
-runEvolution();
+runGroup();
 </script>
 </body>
 </html>
