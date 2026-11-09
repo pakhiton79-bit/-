@@ -178,6 +178,35 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
 .strat .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-top: 7px; }
 .strat b { font-weight: 600; display: block; }
 .strat span { font-size: 13px; color: var(--muted); line-height: 1.35; display: block; }
+.strat.featured { grid-column: 1 / -1; order: -1; border-width: 2px; }
+.strat .badge {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; vertical-align: 2px;
+  font-size: 11px; font-weight: 600; color: #fff; letter-spacing: .02em;
+}
+
+/* Section 06: the new strategy */
+.dip-rules { margin: 14px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+.dip-rules li { line-height: 1.5; }
+.dip-rules li::marker { color: var(--muted); font-weight: 600; }
+.dip-table { display: grid; gap: 14px; margin-top: 10px; }
+.dip-label { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.dip-cells { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.dip-cell {
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px; text-align: center;
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.dip-cell .eps { font-size: 12px; color: var(--muted); }
+.dip-cell b { font-size: 17px; }
+.dip-cell .val { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dip-cell.win { background: var(--coop-soft); border-color: transparent; }
+.dip-cell.win b { color: var(--coop); }
+@media (max-width: 420px) {
+  .dip-cells { gap: 4px; }
+  .dip-cell { padding: 7px 1px; }
+  .dip-cell .eps .w { display: none; }
+  .dip-cell .eps, .dip-cell .val { font-size: 11px; }
+  .dip-cell b { font-size: 15px; }
+}
 .controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 18px; align-items: end; margin-bottom: 18px; }
 .controls label { font-size: 14px; color: var(--muted); display: block; }
 .controls output { color: var(--ink); font-weight: 600; }
@@ -377,6 +406,23 @@ button.defect { background: var(--defect); color: #fff; border-color: var(--defe
     <p class="small muted" style="margin-top:16px">В одном раунде предательство строго доминирует. Если же игра повторяется и её конец заранее неизвестен, сотрудничество может быть выгодным. Аксельрод называл это «тенью будущего». В этом симуляторе число раундов фиксировано, но ни одна из стратегий его не учитывает.</p>
   </section>
 
+  <!-- 6. The new strategy -->
+  <section class="card" id="diplomat">
+    <div class="sec-head"><span class="num">06</span><h2>Новая стратегия: Дипломат</h2></div>
+    <p>Дипломат придуман для этого симулятора. Он играет на равных с остальными: видит только уже сделанные ходы и не знает, кто его соперник и сколько будет раундов. Его правила развивают черты, которые выделил Аксельрод.</p>
+    <ol class="dip-rules">
+      <li><b>Не предаёт первым.</b> Первым ходом молчит. Сдавать начинает только после предательства соперника.</li>
+      <li><b>Отвечает на предательство и признаёт свои ошибки.</b> Дипломат следит за репутацией обоих игроков. Кто сдал против игрока с хорошей репутацией, получает плохую, кто промолчал, снова получает хорошую, а сдать против игрока с плохой репутацией не проступок. Вне режима вражды (правило 5) Дипломат сдаёт, только если репутация соперника плохая, а его собственная хорошая. Поэтому за свою ошибку, например из-за шума, он принимает ответный удар и не мстит за него. Это правило «раскаивающегося Ока за око» (Р. Бойд, 1989).</li>
+      <li><b>Не втягивается в эхо.</b> Если в раунде Дипломат сдал, а соперник промолчал, то предательство соперника в следующем раунде считается ответом и репутацию ему не портит. Так Дипломат не попадает в поочерёдную месть, в которой застревают две копии «Ока за око».</li>
+      <li><b>Предлагает мир.</b> Если в прошлом раунде оба сдали, Дипломат молчит два раунда подряд (в режиме вражды из правила 5 только после четырёх взаимных предательств подряд). Если на первое молчание соперник ответил предательством, мир отвергнут, и больше Дипломат его не предлагает.</li>
+      <li><b>Отличает вражду от ошибок.</b> Пока шума не видно, каждое предательство соперника для Дипломата осознанное. Он копит подозрение: +3, если соперник сдал сразу после его молчания, и −1, но не ниже нуля, если промолчал в ответ. Когда подозрение доходит до 6, начинается режим вражды: Дипломат сдаёт всегда, кроме предложений мира, и возвращается к сотрудничеству, только если соперник мир примет. Если собственный ход Дипломата хоть раз заменился из-за шума, подозрение он больше не копит: предательство соперника тоже может оказаться ошибкой.</li>
+    </ol>
+    <h3 style="margin:26px 0 4px">Место Дипломата при 200 раундах</h3>
+    <p class="small muted">В турнире указан средний выигрыш за раунд, в эволюции доля в популяции через 150 поколений. Считается тем же точным методом, что и раздел 04, и пересчитывается при смене выигрышей T, R, P, S.</p>
+    <div class="dip-table" id="dipTable"></div>
+    <p class="small muted" style="margin-top:16px">При выигрышах 5, 3, 1, 0 проверены и другие длины матча. При 50, 100 и 500 раундах Дипломат тоже первый в турнире при каждом шуме из таблицы. В эволюции он тоже первый, кроме трёх случаев с шумом 20%: при 50 раундах в обоих наборах и при 100 раундах среди всех 13 стратегий. В них больше доля у «Ока за око». Короткие матчи (5, 10 и 20 раундов) проверены при шуме 0, 2, 5, 15 и 20%, и в них сотрудничество окупается хуже. В турнире при 20 раундах Дипломат уступает при шуме 20%, при 10 раундах при шуме 15 и 20%, а при 5 раундах первый только без шума и в наборе по умолчанию; впереди тогда Злопамятный, Эгоист или Хитрец. В эволюции в коротких матчах с шумом он тоже не всегда первый. Универсально лучшей стратегии не существует. Например, без шума и при 3 и более раундах стратегия, которая хоть иногда начинает с молчания, проигрывает Эгоисту, если почти все её соперники — копии Эгоиста. А стратегия, которая всегда начинает с предательства, проигрывает Злопамятному, если почти все соперники — копии Злопамятного.</p>
+  </section>
+
 </main>
 
 <script>
@@ -395,6 +441,64 @@ function payoff(a, b) {
 //   next(s, my, op) next state after the realized moves of this round
 // The same definition drives the random matches (play, duel) and the exact expectations (tournament).
 const MAJ = 600; // counter offset for «Большинство»; matches are at most 500 rounds
+
+// Numbers the states reachable from `start` and returns the same automaton form {size, init, p, next}.
+// States are plain objects; intent(state) is the probability of C, update(state, my, op) the next state.
+function buildAutomaton(start, intent, update) {
+  const index = new Map(), states = [];
+  const id = st => {
+    const key = JSON.stringify(st);
+    if (!index.has(key)) { index.set(key, states.length); states.push(st); }
+    return index.get(key);
+  };
+  id(start);
+  const N = [];
+  for (let i = 0; i < states.length; i++)
+    for (let my = 0; my <= 1; my++)
+      for (let op = 0; op <= 1; op++) N[i * 4 + my * 2 + op] = id(update(states[i], my, op));
+  const P = states.map(intent);
+  return { size: states.length, init: 0, p: s => P[s], next: (s, my, op) => N[s * 4 + my * 2 + op] };
+}
+
+// «Дипломат», the strategy designed for this simulator (section 06). It sees only the moves made so far.
+function diplomat() {
+  const STEP = 3, LIMIT = 6, WAIT = 4; // suspicion per unprovoked defection; hostility threshold; mutual defections before a peace offer while hostile
+  const plan = s =>
+    s.offered ? 'peace2' :                                       // second silent move of a peace offer
+    s.hostile ? (!s.refused && s.streak >= WAIT ? 'peace' : 'defect') :
+    !s.refused && s.streak >= 1 ? 'peace' :                      // both defected last round: offer peace
+    (s.opGood || !s.meGood) ? 'coop' : 'defect';                 // contrite «Око за око» on standings
+  const intent = s => plan(s) === 'defect' ? D : C;
+  const update = (s, my, op) => {
+    const k = plan(s), n = { ...s };
+    if (my !== intent(s)) n.noise = 1;                           // its own move was replaced: the game is noisy
+    let peace = false;
+    if (k === 'peace2') {                                        // the opponent's move now answers the first silent move
+      if (op === D) n.refused = 1;
+      else if (s.hostile) { n.hostile = 0; n.suspicion = 0; peace = true; }
+    }
+    if (!n.hostile && !n.noise && s.lastMy === C) {              // a defection right after its silence is unprovoked
+      n.suspicion = op === D ? n.suspicion + STEP : Math.max(0, n.suspicion - 1);
+      if (n.suspicion >= LIMIT) { n.hostile = 1; n.suspicion = LIMIT; }
+    }
+    // Standing: defecting against a player in good standing costs good standing, cooperating restores it.
+    // A defection that answers its own retaliation (echo) does not cost the opponent good standing.
+    n.meGood = my === C ? 1 : (s.opGood ? 0 : s.meGood);
+    n.opGood = op === C ? 1 : (s.meGood && !s.echo ? 0 : s.opGood);
+    if (peace) { n.meGood = 1; n.opGood = 1; }
+    n.streak = k === 'peace' ? 0 : (my === D && op === D) ? s.streak + 1 : 0;
+    n.offered = k === 'peace' ? 1 : 0;
+    n.lastMy = my;
+    n.echo = my === D && op === C ? 1 : 0;
+    // Fields that can no longer change any move get fixed values, so the automaton stays small
+    if (n.hostile) { n.meGood = 1; n.opGood = 0; n.echo = 0; }
+    else if (n.noise) n.suspicion = 0;
+    n.streak = n.refused ? 0 : Math.min(n.streak, n.hostile ? WAIT : 1);
+    return n;
+  };
+  return buildAutomaton({ meGood: 1, opGood: 1, lastMy: C, echo: 0, streak: 0, offered: 0, refused: 0, suspicion: 0, hostile: 0, noise: 0 }, intent, update);
+}
+
 const STRATS = [
   { id: 'tft', name: 'Око за око', color: '#3b6fd8', random: false,
     desc: 'Первым ходом молчит, дальше повторяет прошлый ход соперника.',
@@ -441,6 +545,9 @@ const STRATS = [
   { id: 'random', name: 'Монетка', color: '#a3906b', random: true,
     desc: 'Каждый ход молчит или сдаёт с вероятностью 1/2.',
     size: 1, init: 0, p: () => 0.5, next: () => 0 },
+  { id: 'diplomat', name: 'Дипломат', color: '#c026d3', random: false, featured: true,
+    desc: 'Новая стратегия, придуманная для этого симулятора (раздел 06). Не предаёт первым и отвечает на предательство, но признаёт свои ошибки, не мстит за ответный удар и первым предлагает мир. Если шума нет, а соперник часто предаёт без повода, переходит на предательство.',
+    ...diplomat() },
 ];
 const byId = Object.fromEntries(STRATS.map(s => [s.id, s]));
 
@@ -792,13 +899,14 @@ function drawDuel() {
 }
 
 /* ---------- 4. Tournament ---------- */
-const DEFAULT_ON = ['tft', 'allc', 'alld', 'grim', 'tf2t', 'pavlov', 'stft', 'detective', 'majority', 'joss', 'random'];
+const DEFAULT_ON = ['tft', 'allc', 'alld', 'grim', 'tf2t', 'pavlov', 'stft', 'detective', 'majority', 'joss', 'random', 'diplomat'];
 function setupStratList() {
+  // The new strategy gets a full-width card above the grid of the twelve classic ones
   document.getElementById('stratList').innerHTML = STRATS.map(s => `
-    <label class="strat">
+    <label class="strat${s.featured ? ' featured' : ''}"${s.featured ? ` style="border-color:${s.color}"` : ''}>
       <input type="checkbox" value="${s.id}" ${DEFAULT_ON.includes(s.id) ? 'checked' : ''}>
       <i class="dot" style="background:${s.color}"></i>
-      <div><b>${s.name}</b><span>${s.desc}</span></div>
+      <div><b>${s.name}${s.featured ? ` <small class="badge" style="background:${s.color}">новая</small>` : ''}</b><span>${s.desc}</span></div>
     </label>`).join('');
 }
 const selected = () => [...document.querySelectorAll('#stratList input:checked')].map(i => byId[i.value]);
@@ -902,6 +1010,20 @@ function drawTournament() {
 }
 
 /* ---------- evolution (discrete replicator dynamics) ---------- */
+// x_i' = x_i·f_i/f̄ with f = M·x, starting from equal shares. Returns the shares of generations 0..gens.
+function replicator(M, gens) {
+  const n = M.length;
+  let x = Array(n).fill(1 / n);
+  const hist = [x];
+  for (let g = 0; g < gens; g++) {
+    const fit = x.map((_, i) => M[i].reduce((s, m, j) => s + m * x[j], 0));
+    const mean = fit.reduce((s, f, i) => s + f * x[i], 0);
+    if (mean > 0) x = x.map((v, i) => v * fit[i] / mean);
+    hist.push(x);
+  }
+  return hist;
+}
+
 function drawEvolution() {
   const { list, M } = lastTour;
   const verdict = document.getElementById('evoVerdict');
@@ -915,15 +1037,9 @@ function drawEvolution() {
   box.hidden = false;
   const gens = +document.getElementById('gens').value;
   const n = list.length;
-  let x = Array(n).fill(1 / n);
-  const series = list.map(() => []);
-  for (let g = 0; g <= gens; g++) {
-    x.forEach((v, i) => series[i].push(v * 100));
-    const fit = x.map((_, i) => M[i].reduce((s, m, j) => s + m * x[j], 0));
-    const mean = fit.reduce((s, f, i) => s + f * x[i], 0);
-    if (mean <= 0) continue;
-    x = x.map((v, i) => v * fit[i] / mean);
-  }
+  const hist = replicator(M, gens);
+  const series = list.map((_, i) => hist.map(x => x[i] * 100));
+  const x = hist[gens]; // the last point of the chart; the text below describes this generation
 
   makeChart('evo', 'evoChart', {
     type: 'line',
@@ -986,6 +1102,45 @@ function drawEvolution() {
   verdict.innerHTML = text;
 }
 
+/* ---------- 6. Дипломат: place at 200 rounds, the same exact computation as section 04 ---------- */
+const DIP_NOISE = [0, 0.01, 0.05, 0.1, 0.2];
+let dipJob = 0;
+function renderDipTable() {
+  const job = ++dipJob;
+  const sets = [STRATS.filter(s => DEFAULT_ON.includes(s.id)), STRATS];
+  const titles = [
+    `Турнир, ${sets[0].length} стратегий по умолчанию`, `Турнир, все ${sets[1].length} стратегий`,
+    `Эволюция, ${sets[0].length} стратегий по умолчанию`, `Эволюция, все ${sets[1].length} стратегий`,
+  ];
+  const el = document.getElementById('dipTable');
+  el.innerHTML = titles.map((t, r) => `<div><div class="dip-label">${t}</div><div class="dip-cells">` +
+    DIP_NOISE.map((e, k) => `<div class="dip-cell" id="dip${r}_${k}"><span class="eps"><span class="w">шум </span>${Math.round(e * 100)}%</span><b>…</b><span class="val">&nbsp;</span></div>`).join('') +
+    '</div></div>').join('');
+  const put = (r, k, place, val) => {
+    const c = document.getElementById(`dip${r}_${k}`);
+    c.classList.toggle('win', place === 1);
+    c.querySelector('b').textContent = place ? `${place}-е` : '—';
+    c.querySelector('.val').textContent = val;
+  };
+  // One noise level per tick, so the page stays responsive while the noisy matches are computed
+  let k = 0;
+  const step = () => {
+    if (job !== dipJob) return;
+    const noise = DIP_NOISE[k];
+    sets.forEach((list, si) => {
+      const M = payoffMatrix(list, 200, noise);
+      const n = list.length, me = list.findIndex(s => s.id === 'diplomat');
+      const avg = M.map(row => row.reduce((a, b) => a + b, 0) / n);
+      put(si, k, 1 + avg.filter(v => v > avg[me] + EPS).length, fmt(avg[me], 3));
+      if (Math.min(pay.T, pay.R, pay.P, pay.S) < 0) { put(2 + si, k, null, 'выигрыши < 0'); return; }
+      const x = replicator(M, 150)[150];
+      put(2 + si, k, 1 + x.filter(v => v > x[me] + EPS).length, fmt(x[me] * 100, 1) + '%');
+    });
+    if (++k < DIP_NOISE.length) setTimeout(step, 0);
+  };
+  setTimeout(step, 60);
+}
+
 /* ---------- wiring ---------- */
 function readPayoffs() {
   for (const k of ['T', 'R', 'P', 'S']) {
@@ -996,6 +1151,7 @@ function readPayoffs() {
   newGame();
   runDuel();
   runGroup();
+  renderDipTable();
 }
 ['pT', 'pR', 'pP', 'pS'].forEach(id => document.getElementById(id).addEventListener('change', readPayoffs));
 
@@ -1034,6 +1190,7 @@ renderRules();
 newGame();
 runDuel();
 runGroup();
+renderDipTable();
 </script>
 </body>
 </html>
