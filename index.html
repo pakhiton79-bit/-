@@ -134,6 +134,37 @@ select {
 select:hover { border-color: var(--muted); }
 select:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 select option { background: var(--card); color: var(--ink); font-weight: 500; }
+/* Custom dropdown: the native <select> stays in the page (hidden) and keeps the value; the open list is drawn by the page so it follows the theme */
+.dsel { position: relative; min-width: 0; }
+.dsel > select { display: none; }
+.dd-btn {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
+  font: inherit; font-weight: 600; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px; cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+.dd-btn:hover { border-color: var(--muted); filter: none; }
+.dd-btn:active { transform: none; }
+.dd-btn:focus-visible, .dsel.open .dd-btn { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.dd-btn .dd-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-btn::after {
+  content: ""; width: 7px; height: 7px; flex: none; margin: -3px 4px 0 0;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .15s;
+}
+.dsel.open .dd-btn::after { transform: rotate(225deg); margin-top: 4px; }
+.dd-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dd-dot.q { background: none; border: 2px dashed var(--muted); width: 8px; height: 8px; }
+.dd-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 50; margin: 0; padding: 6px; list-style: none;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .14); max-height: 320px; overflow-y: auto;
+}
+.dsel.up .dd-list { top: auto; bottom: calc(100% + 6px); }
+.dd-list[hidden] { display: none; }
+.dd-list li { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; cursor: pointer; font-weight: 500; }
+.dd-list li.active { background: var(--bg); }
+.dd-list li[aria-selected="true"] { font-weight: 700; color: var(--accent); }
+.dd-list li[aria-selected="true"]::after { content: "✓"; margin-left: auto; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
 .note { border-radius: 12px; padding: 12px 14px; font-size: 14px; background: var(--bg); border: 1px solid var(--line); }
 .note.bad { border-color: var(--defect); color: var(--defect); }
@@ -1183,9 +1214,73 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (lastTour) { drawTournament(); drawEvolution(); }
 });
 
+/* ---------- dropdowns styled like the rest of the page ---------- */
+// The native <select> keeps the value and its onchange handler; this only replaces how it is shown and opened.
+function enhanceSelect(sel) {
+  const wrap = document.createElement('div');
+  wrap.className = 'dsel';
+  wrap.style.cssText = sel.style.cssText;
+  sel.style.cssText = '';
+  sel.replaceWith(wrap);
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'dd-btn';
+  btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
+  const list = document.createElement('ul');
+  list.className = 'dd-list'; list.setAttribute('role', 'listbox'); list.hidden = true; list.tabIndex = -1;
+  wrap.append(sel, btn, list);
+  const dot = v => byId[v] ? `<span class="dd-dot" style="background:${byId[v].color}"></span>` : '<span class="dd-dot q"></span>';
+  let active = 0;
+  const show = () => {
+    const o = sel.options[sel.selectedIndex];
+    btn.innerHTML = dot(o.value) + `<span class="dd-text">${o.text}</span>`;
+  };
+  const mark = () => [...list.children].forEach((li, i) => li.classList.toggle('active', i === active));
+  const close = focus => {
+    if (list.hidden) return;
+    list.hidden = true; wrap.classList.remove('open', 'up'); btn.setAttribute('aria-expanded', 'false');
+    if (focus) btn.focus();
+  };
+  const choose = i => {
+    const changed = sel.selectedIndex !== i;
+    sel.selectedIndex = i; show(); close(true);
+    if (changed) sel.dispatchEvent(new Event('change'));
+  };
+  const open = () => {
+    list.innerHTML = [...sel.options].map((o, i) =>
+      `<li role="option" data-i="${i}" aria-selected="${i === sel.selectedIndex}">${dot(o.value)}<span>${o.text}</span></li>`).join('');
+    active = sel.selectedIndex; mark();
+    list.hidden = false; wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true');
+    // open upwards when there is not enough room below
+    const r = btn.getBoundingClientRect(), h = Math.min(list.scrollHeight, 320) + 8;
+    wrap.classList.toggle('up', innerHeight - r.bottom < h && r.top > innerHeight - r.bottom);
+    list.children[active].scrollIntoView({ block: 'nearest' });
+  };
+  btn.addEventListener('click', () => list.hidden ? open() : close(true));
+  list.addEventListener('click', e => { const li = e.target.closest('li'); if (li) choose(+li.dataset.i); });
+  list.addEventListener('mousemove', e => { const li = e.target.closest('li'); if (li && +li.dataset.i !== active) { active = +li.dataset.i; mark(); } });
+  btn.addEventListener('keydown', e => {
+    const n = sel.options.length;
+    if (list.hidden) {
+      if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) { e.preventDefault(); open(); }
+      return;
+    }
+    if (e.key === 'ArrowDown') active = Math.min(n - 1, active + 1);
+    else if (e.key === 'ArrowUp') active = Math.max(0, active - 1);
+    else if (e.key === 'Home') active = 0;
+    else if (e.key === 'End') active = n - 1;
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(active); return; }
+    else if (e.key === 'Escape' || e.key === 'Tab') { close(e.key === 'Escape'); return; }
+    else return;
+    e.preventDefault(); mark(); list.children[active].scrollIntoView({ block: 'nearest' });
+  });
+  document.addEventListener('click', e => { if (!wrap.contains(e.target)) close(false); });
+  show();
+}
+
 setupPlaySelect();
 setupStratList();
 setupDuel();
+['oppSelect', 'duelA', 'duelB'].forEach(id => enhanceSelect(document.getElementById(id)));
 renderRules();
 newGame();
 runDuel();
