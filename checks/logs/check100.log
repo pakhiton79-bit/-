@@ -1,0 +1,11 @@
+def R100 e0: tour rank 1 score 2.7738 (best other tft 2.5966) | evo rank 1 26.61% (best other tft 17.31%)
+def R100 e0.01: tour rank 1 score 2.6489 (best other tf2t 2.4158) | evo rank 1 71.09% (best other tf2t 11.79%)
+def R100 e0.05: tour rank 1 score 2.5000 (best other tft 2.3082) | evo rank 1 81.13% (best other tft 13.65%)
+def R100 e0.1: tour rank 1 score 2.4039 (best other tft 2.2984) | evo rank 1 68.72% (best other tft 24.92%)
+def R100 e0.2: tour rank 1 score 2.2871 (best other tft 2.2759) | evo rank 1 39.82% (best other tft 38.97%)
+all R100 e0: tour rank 1 score 2.7912 (best other gtft 2.6546) | evo rank 1 21.88% (best other gtft 15.90%)
+all R100 e0.01: tour rank 1 score 2.6735 (best other gtft 2.5292) | evo rank 1 47.58% (best other gtft 27.34%)
+all R100 e0.05: tour rank 1 score 2.5269 (best other gtft 2.3845) | evo rank 1 51.43% (best other gtft 34.67%)
+all R100 e0.1: tour rank 1 score 2.4284 (best other tft 2.3307) | evo rank 1 43.67% (best other gtft 35.53%)
+all R100 e0.2: tour rank 1 score 2.3056 (best other tft 2.2977) | evo rank 2 29.08% (best other tft 29.29%)
+exit 0

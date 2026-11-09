@@ -1,0 +1,14 @@
+site strategies: tft, allc, alld, grim, tf2t, gtft, pavlov, stft, detective, majority, joss, random, diplomat
+brute R8, noise 0/7%/20%: ordered pairs per noise 169, max |site - brute| = 1.92e-12
+def e0: site score 2.7769 place 1 | share 26.20% place 1
+def e0.01: site score 2.6189 place 1 | share 74.07% place 1
+def e0.05: site score 2.4868 place 1 | share 82.18% place 1
+def e0.1: site score 2.3961 place 1 | share 71.07% place 1
+def e0.2: site score 2.2849 place 1 | share 43.67% place 1
+all e0: site score 2.7940 place 1 | share 21.56% place 1
+all e0.01: site score 2.6458 place 1 | share 48.27% place 1
+all e0.05: site score 2.5148 place 1 | share 49.94% place 1
+all e0.1: site score 2.4211 place 1 | share 42.52% place 1
+all e0.2: site score 2.3035 place 1 | share 30.42% place 1
+table R200: max |M site - M bench| = 0.00e+0, max |share site - share bench| = 0.00e+0
+exit 0

@@ -1,0 +1,19 @@
+a3H6w1kH4K1: tour 1st 25/40, evo 1st 24/40
+   def R5 e0.02: tour rank 2 margin -0.009 vs joss | evo rank 4 14.9% vs grim 28.5%
+   def R5 e0.05: tour rank 4 margin -0.033 vs grim | evo rank 4 5.4% vs grim 51.6%
+   def R5 e0.15: tour rank 9 margin -0.142 vs alld | evo rank 7 0.0% vs grim 93.3%
+   def R5 e0.2: tour rank 9 margin -0.214 vs alld | evo rank 7 0.0% vs alld 100.0%
+   def R10 e0.15: tour rank 5 margin -0.052 vs grim | evo rank 2 24.8% vs tft 52.1%
+   def R10 e0.2: tour rank 8 margin -0.103 vs grim | evo rank 8 0.0% vs grim 95.1%
+   def R20 e0.2: tour rank 6 margin -0.045 vs grim | evo rank 2 25.3% vs tft 40.0%
+   all R5 e0: tour rank 2 margin -0.000 vs joss | evo rank 1 17.1% vs tft 15.9%
+   all R5 e0.02: tour rank 2 margin -0.013 vs joss | evo rank 4 13.2% vs grim 23.5%
+   all R5 e0.05: tour rank 4 margin -0.033 vs grim | evo rank 5 5.3% vs grim 46.0%
+   all R5 e0.15: tour rank 9 margin -0.143 vs alld | evo rank 8 0.0% vs grim 92.9%
+   all R5 e0.2: tour rank 9 margin -0.214 vs alld | evo rank 7 0.0% vs alld 100.0%
+   all R10 e0.05: tour rank 1 margin 0.007 vs tft | evo rank 2 37.3% vs tft 38.2%
+   all R10 e0.15: tour rank 5 margin -0.051 vs grim | evo rank 2 18.6% vs tft 43.7%
+   all R10 e0.2: tour rank 9 margin -0.102 vs grim | evo rank 9 0.0% vs grim 95.9%
+   all R20 e0.2: tour rank 6 margin -0.047 vs grim | evo rank 2 20.0% vs tft 33.6%
+   all R100 e0.2: tour rank 1 margin 0.008 vs tft | evo rank 2 29.1% vs tft 29.3%
+exit 0

@@ -1,0 +1,31 @@
+R50 e0
+  a3H6w1kH4K1: tour rank 1/28 (2.836; top: a3H6w1kH4K1 2.836, omega 2.815, gradual 2.771) | evo rank 1 (a3H6w1kH4K1 9.1%, omega 8.6%, gradual 8.0%)
+  a4H8w1kH4K1: tour rank 1/28 (2.840; top: a4H8w1kH4K1 2.840, omega 2.815, gradual 2.771) | evo rank 1 (a4H8w1kH4K1 9.1%, omega 8.6%, gradual 8.0%)
+R50 e0.01
+  a3H6w1kH4K1: tour rank 1/28 (2.725; top: a3H6w1kH4K1 2.725, omega 2.684, gradual 2.674) | evo rank 1 (a3H6w1kH4K1 21.2%, gradual 15.0%, omega 11.5%)
+  a4H8w1kH4K1: tour rank 1/28 (2.729; top: a4H8w1kH4K1 2.729, omega 2.684, gradual 2.674) | evo rank 1 (a4H8w1kH4K1 21.3%, gradual 14.9%, omega 11.5%)
+R50 e0.05
+  a3H6w1kH4K1: tour rank 1/28 (2.516; top: a3H6w1kH4K1 2.516, gradual 2.439, omega 2.433) | evo rank 1 (a3H6w1kH4K1 44.5%, gtft 11.6%, ctft 10.5%)
+  a4H8w1kH4K1: tour rank 1/28 (2.520; top: a4H8w1kH4K1 2.520, gradual 2.439, omega 2.433) | evo rank 1 (a4H8w1kH4K1 44.5%, gtft 11.6%, ctft 10.6%)
+R50 e0.1
+  a3H6w1kH4K1: tour rank 1/28 (2.383; top: a3H6w1kH4K1 2.383, gradual 2.323, omega 2.322) | evo rank 1 (a3H6w1kH4K1 36.4%, ctft 19.0%, zdgtft2 11.5%)
+  a4H8w1kH4K1: tour rank 1/28 (2.385; top: a4H8w1kH4K1 2.385, gradual 2.322, omega 2.322) | evo rank 1 (a4H8w1kH4K1 36.1%, ctft 19.4%, zdgtft2 11.6%)
+R50 e0.2
+  a3H6w1kH4K1: tour rank 10/28 (2.248; top: grim 2.315, alld 2.307, omega 2.301) | evo rank 2 (ctft 23.7%, a3H6w1kH4K1 16.5%, tft 13.0%)
+  a4H8w1kH4K1: tour rank 10/28 (2.249; top: grim 2.315, alld 2.307, omega 2.301) | evo rank 2 (ctft 23.9%, a4H8w1kH4K1 16.4%, tft 13.0%)
+R200 e0
+  a3H6w1kH4K1: tour rank 1/28 (2.852; top: a3H6w1kH4K1 2.852, omega 2.820, gradual 2.781) | evo rank 1 (a3H6w1kH4K1 9.2%, omega 8.7%, gradual 8.1%)
+  a4H8w1kH4K1: tour rank 1/28 (2.852; top: a4H8w1kH4K1 2.852, omega 2.820, gradual 2.781) | evo rank 1 (a4H8w1kH4K1 9.2%, omega 8.7%, gradual 8.1%)
+R200 e0.01
+  a3H6w1kH4K1: tour rank 1/28 (2.654; top: a3H6w1kH4K1 2.654, omega 2.601, gradual 2.584) | evo rank 1 (a3H6w1kH4K1 29.8%, omega 13.0%, gtft 12.5%)
+  a4H8w1kH4K1: tour rank 1/28 (2.656; top: a4H8w1kH4K1 2.656, omega 2.601, gradual 2.584) | evo rank 1 (a4H8w1kH4K1 29.8%, omega 13.0%, gtft 12.5%)
+R200 e0.05
+  a3H6w1kH4K1: tour rank 1/28 (2.468; top: a3H6w1kH4K1 2.468, majority 2.385, omega 2.344) | evo rank 1 (a3H6w1kH4K1 50.1%, gtft 14.8%, zdgtft2 11.1%)
+  a4H8w1kH4K1: tour rank 1/28 (2.471; top: a4H8w1kH4K1 2.471, majority 2.385, omega 2.344) | evo rank 1 (a4H8w1kH4K1 49.9%, gtft 15.0%, zdgtft2 11.2%)
+R200 e0.1
+  a3H6w1kH4K1: tour rank 1/28 (2.346; top: a3H6w1kH4K1 2.346, majority 2.293, ctft 2.260) | evo rank 1 (a3H6w1kH4K1 41.2%, ctft 17.8%, zdgtft2 12.9%)
+  a4H8w1kH4K1: tour rank 1/28 (2.347; top: a4H8w1kH4K1 2.347, majority 2.292, ctft 2.260) | evo rank 1 (a4H8w1kH4K1 40.9%, ctft 18.1%, zdgtft2 13.0%)
+R200 e0.2
+  a3H6w1kH4K1: tour rank 9/28 (2.224; top: grim 2.280, alld 2.274, omega 2.271) | evo rank 2 (ctft 27.3%, a3H6w1kH4K1 20.1%, tft 11.2%)
+  a4H8w1kH4K1: tour rank 9/28 (2.225; top: grim 2.280, alld 2.274, omega 2.271) | evo rank 2 (ctft 27.5%, a4H8w1kH4K1 20.0%, tft 11.2%)
+exit 0
